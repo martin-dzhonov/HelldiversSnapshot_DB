@@ -1,0 +1,31 @@
+{
+    "name": "helldiverssnapshotbe",
+    "version": "1.0.0",
+    "main": "server.mjs",
+    "type": "module",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "description": "",
+    "dependencies": {
+        "@aws-sdk/client-s3": "^3.592.0",
+        "dotenv": "^16.4.5",
+        "express": "^4.19.2",
+        "image-ssim": "^0.2.0",
+        "jimp": "^0.22.12",
+        "jpeg-js": "^0.4.4",
+        "mongodb": "^6.7.0",
+        "mongoose": "^8.4.1",
+        "node-tesseract-ocr": "^2.2.1",
+        "nodemon": "^3.1.0",
+        "p-limit": "^6.1.0",
+        "pixelmatch": "^6.0.0",
+        "pngjs": "^7.0.0",
+        "sharp": "^0.33.5",
+        "ssim.js": "^3.5.0",
+        "tesseract.js": "^5.1.0"
+    }
+}
