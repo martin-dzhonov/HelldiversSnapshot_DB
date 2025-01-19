@@ -191,7 +191,7 @@ app.get('/generate', async (req, res) => {
     await GameModel.insertMany(result);
 
     console.timeEnd('Execution Time');
-    res.send({ res: matchesRaw });
+    res.send({ lenght: matchesRaw.lenght, res: matchesRaw });
 });
 
 app.get('/filter', async (req, res) => {
