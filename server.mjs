@@ -125,7 +125,7 @@ async function processLoadout(file, assetsData) {
 
 async function getLoadoutData(loadoutFiles) {
     const limit = pLimit(200);
-    const assetsDir = 'assets';
+    const assetsDir = 'assets/strategem';
     const assets = await fsPromises.readdir(assetsDir);
 
     const assetsData = await Promise.all(
