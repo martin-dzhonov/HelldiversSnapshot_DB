@@ -165,7 +165,7 @@ const validPlayers = (playerGroups) => {
 };
 
 const getDifficultyInt = (text) => {
-    let diffIndex = 0;
+    let diffIndex = -2;
     difficulties.forEach((arrItem, arrIndex) => {
         const indexFound = text.indexOf(arrItem) !== -1;
         if (indexFound) diffIndex = arrIndex;
@@ -209,7 +209,7 @@ function levenshteinDistance(s1, s2) {
     for (let i = 1; i <= s2.length; i++) {
         for (let j = 1; j <= s1.length; j++) {
             dp[i][j] = Math.min(
-                dp[i - 1][j - 1] + (s1[j - 1] === s2[i - 1] ? 0 : 1),dp[i][j - 1] + 1, dp[i - 1][j] + 1  
+                dp[i - 1][j - 1] + (s1[j - 1] === s2[i - 1] ? 0 : 1), dp[i][j - 1] + 1, dp[i - 1][j] + 1
             );
         }
     }
@@ -297,7 +297,11 @@ function mergePairs(loadoutResult, briefingResult) {
         return extractNumber(a.id) - extractNumber(b.id);
     })
     const matchesRaw = mergeArrayItems(itemsSorted);
-    const matchesFiltered = matchesRaw.filter((item) => item.players.length > 0 && item.faction !== null);
+    const matchesFiltered = matchesRaw
+        .filter((item) =>
+            item.players.length > 0 &&
+            item.faction !== null &&
+            item.difficulty > 6);
 
     return matchesFiltered;
 }
