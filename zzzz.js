@@ -1,3 +1,110 @@
+
+// app.get('/generate2', async (req, res) => {
+//     console.time('Execution Time');
+//     const files = await fsPromises.readdir(dir_latest);
+//     const loadoutFiles = files.filter((item, index) => index % 3 === 0)
+//         .map((item) => `${dir_latest}/${item}`);
+//     const weaponsFiles = files.filter((item, index) => index % 3 === 1)
+//         .map((item) => `${dir_latest}/${item}`);
+//     const briefingFiles = files.filter((item, index) => index % 3 === 2)
+//         .map((item) => `${dir_latest}/${item}`);
+
+//     const [loadoutResult, briefingResult, weaponsResult] = await Promise.all(
+//         [getLoadoutData(loadoutFiles), getBriefingData(briefingFiles), getWeaponsData(weaponsFiles)]);
+
+//     const matchesRaw = mergeDataResults(loadoutResult, briefingResult, weaponsResult);
+//     const matches = await normalizeIds(matchesRaw);
+
+//     matches.map((match) => {
+//         const weaponsId = Number(match.fileName.match(/\((\d+)\)/)?.[1]) - 1;
+//         const loadoutId = Number(match.fileName.match(/\((\d+)\)/)?.[1]) - 2;
+
+//         fsPromises.rename(match.fileName,
+//             `Screenshots/${match.faction}/latest/${getFileFromId(match.id + 2)}`, function (err) { if (err) throw err; });
+//         fsPromises.rename(`${dir_latest}/${getFileFromId(weaponsId)}`,
+//             `Screenshots/${match.faction}/latest/${getFileFromId(match.id + 1)}`, function (err) { if (err) throw err; });
+//         fsPromises.rename(`${dir_latest}/${getFileFromId(loadoutId)}`,
+//             `Screenshots/${match.faction}/latest/${getFileFromId(match.id)}`, function (err) { if (err) throw err; });
+//     });
+
+//     console.log(matches.length);
+//     await GameModel.insertMany(matches, { ordered: false });
+//     console.timeEnd('Execution Time');
+
+//     res.send({ len: matches.length, res: matches });
+// });
+
+// app.get('/generate', async (req, res) => {
+//     console.time('Execution Time');
+//     const files = await fsPromises.readdir(dir_latest);
+//     const loadoutFiles = files.filter((item, index) => index % 3 === 0)
+//         .map((item) => `${dir_latest}/${item}`);
+//     const weaponsFiles = files.filter((item, index) => index % 3 === 1)
+//         .map((item) => `${dir_latest}/${item}`);
+//     const briefingFiles = files.filter((item, index) => index % 3 === 2)
+//         .map((item) => `${dir_latest}/${item}`);
+
+//     const [loadoutResult, briefingResult, weaponsResult] = await Promise.all(
+//         [getLoadoutData(loadoutFiles), getBriefingData(briefingFiles), getWeaponsData(weaponsFiles)]);
+
+//     const matchesRaw = mergeDataResults(loadoutResult, briefingResult, weaponsResult);
+//     const matches = await normalizeIds(matchesRaw);
+
+//     matches.map((match) => {
+//         const weaponsId = Number(match.fileName.match(/\((\d+)\)/)?.[1]) - 1;
+//         const loadoutId = Number(match.fileName.match(/\((\d+)\)/)?.[1]) - 2;
+
+//         fsPromises.rename(match.fileName,
+//             `Screenshots/${match.faction}/latest/${getFileFromId(match.id + 2)}`, function (err) { if (err) throw err; });
+//         fsPromises.rename(`${dir_latest}/${getFileFromId(weaponsId)}`,
+//             `Screenshots/${match.faction}/latest/${getFileFromId(match.id + 1)}`, function (err) { if (err) throw err; });
+//         fsPromises.rename(`${dir_latest}/${getFileFromId(loadoutId)}`,
+//             `Screenshots/${match.faction}/latest/${getFileFromId(match.id)}`, function (err) { if (err) throw err; });
+//     });
+
+//     console.log(matches.length);
+//     await GameModel.insertMany(matches, { ordered: false });
+//     console.timeEnd('Execution Time');
+
+//     res.send({ len: matches.length, res: matches });
+// });
+
+// async function getBriefingData(files) {
+//     const limit = pLimit(100);
+
+//     return await Promise.all(
+//         files.map(file => limit(() => processBriefing(file)))
+//     );
+// }
+
+// async function processBriefing(file) {
+//     console.log("Briefing: " + file)
+//     const buffer = await fsPromises.readFile(file);
+//     const png = PNG.sync.read(buffer);
+
+//     const ocrResults = await Promise.all(
+//         briefingAreas.map(async ({ left, top, width, height }) => {
+//             const croppedPixels = cropImage(png.data, png.width, left, top, width, height);
+//             const croppedPng = new PNG({ width, height, filterType: -1 });
+//             croppedPng.data = croppedPixels;
+//             const croppedImageBuffer = PNG.sync.write(croppedPng);
+//             return tesseractRecognize(croppedImageBuffer);
+//         })
+//     );
+
+//     const [planetData, missionNameData, difficultyData, modifiersData] = ocrResults;
+//     const { planetName, faction } = getFaction(planetData);
+
+//     return {
+//         fileName: file,
+//         planet: planetName,
+//         faction,
+//         mission: missionNameData.replace(/\n/g, ''),
+//         difficulty: getDifficultyInt(difficultyData),
+//         modifiers: getMissionModifiers(modifiersData)
+//     };
+// }
+
 // async function processImage2(buffer, left, top, width, height) {
 //     //const buffer = await fs.readFile(filePath);
 //     const png = PNG.sync.read(buffer);

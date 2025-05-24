@@ -9,25 +9,11 @@ mongoose.connect(`mongodb+srv://martindzhonov:${mongoKey}@serverlessinstance0.hr
 
 const gameSchema = new mongoose.Schema({
     id: { type: Number, unique: true },
-    fileName: String,
-    faction: String,
-    planet: String,
-    difficulty: Number,
-    mission: String,
     createdAt: Date,
-    players: [],
-    weapons: [],
-    modifiers: [],
-})
-
-const gameSchema1 = new mongoose.Schema({
-    id: { type: Number, unique: true },
-    fileName: String,
-    faction: String,
     planet: String,
-    difficulty: Number,
+    faction: String,
     mission: String, 
-    createdAt: Date,
+    difficulty: Number,
     players: [
         {
             strategem: [String],
@@ -39,11 +25,11 @@ const gameSchema1 = new mongoose.Schema({
 })
 
 const GameModel = mongoose.model("matches", gameSchema);
-const TestModel = mongoose.model("matches_test", gameSchema);
-const TestModel1 = mongoose.model("matches_test1", gameSchema1);
+const GameModelBackup = mongoose.model("matches_backup", gameSchema);
+const GameModelTest = mongoose.model("matches_test1", gameSchema);
 
 export {
-    TestModel,
     GameModel,
-    TestModel1
+    GameModelBackup,
+    GameModelTest
 }

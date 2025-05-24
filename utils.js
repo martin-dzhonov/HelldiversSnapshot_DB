@@ -159,9 +159,9 @@ const getPixelAt = (x, y, buffer) => {
 }
 
 const isColor = (pixel, color) => {
-    if (Math.abs(pixel.r - color.r) < 6 &&
-        Math.abs(pixel.g - color.g) < 6 &&
-        Math.abs(pixel.b - color.b) < 6) {
+    if (Math.abs(pixel.r - color.r) < 8 &&
+        Math.abs(pixel.g - color.g) < 8 &&
+        Math.abs(pixel.b - color.b) < 8) {
         return true;
     }
     return false;
@@ -219,7 +219,7 @@ const getScreenshotId = (text) => {
 }
 
 const isBriefing = (pixel) => {
-    return isColor(pixel, { r: 255, g: 255, b: 255 })
+    return isColor(pixel, { r: 235, g: 235, b: 235 })
 }
 
 const isLoadout = (pixel) => {
@@ -247,7 +247,7 @@ const validateDiffs = (playerGroups) => {
         .filter(group => !group.every(({ match, diff }) => match === "empty.png"))
         .map(group => group.map(({ match }) => match.replace(/_new/g, '').replace(/.png/g, '')).filter((match) => match !== "empty"))
         .filter(group => group.length > 2)
-    return result;
+    return playerGroups;
 };
 
 const validateDiffs2 = (playerGroups) => {
@@ -343,13 +343,13 @@ const getMissionModifiers = (text) => {
 async function getFactionIndices() {
     const indices = {};
     for (const faction of factionNames) {
-        const files = await fsPromises.readdir(`Screenshots/${faction}/all`);
-        indices[`${faction}`] = files.length;
+        const files = await fsPromises.readdir(`Screenshots/${faction}/all/new`);
+        indices[`${faction}`] = getScreenshotId(files[files.length - 1]) + 1;
     }
     return {
-        automatonIndex: indices.automaton + 100000,
-        terminidIndex: indices.terminid + 500000,
-        illuminateIndex: indices.illuminate + 800000
+        automatonIndex: indices.automaton,
+        terminidIndex: indices.terminid,
+        illuminateIndex: indices.illuminate
     };
 }
 
@@ -375,8 +375,8 @@ async function  normalizeIds(matches) {
                 break;
         }
         return {
-            ...match,
             id: index,
+            ...match,
         }
 
     })
@@ -423,6 +423,30 @@ function filterUniqueSubarraysInChunks(data, chunkSize) {
     return result;
 }
 
+function filterDuplicatesInChunks(data, chunkSize) {
+    const seen = new Set();
+    const result = [];
+  
+    for (let i = 0; i < data.length; i += chunkSize) {
+      const chunk = data.slice(i, i + chunkSize);
+
+      result.push(...chunk.filter(item => {
+        const key = JSON.stringify([
+          [...item.players.map(player => (player.strategem || []).slice().sort())]
+            .sort((a, b) => a.join().localeCompare(b.join())),
+          [...item.players.map(player => (player.weapons || []).slice().sort())]
+            .sort((a, b) => a.join().localeCompare(b.join()))
+        ]);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }));
+    }
+  
+    return result;
+  }
+
+
 function filterDataResults(items) {
     const baseFiltered = items.filter(
         (item) =>
@@ -431,7 +455,7 @@ function filterDataResults(items) {
             item.difficulty > 6
     );
 
-    const result = filterUniqueSubarraysInChunks(baseFiltered, 15);
+    const result = filterDuplicatesInChunks(baseFiltered, 20);
 
     return result;
 };
@@ -444,19 +468,28 @@ function mergeDataResults(loadoutResult, briefingResult, thirdResult) {
             const extractNumber = (text) => parseInt(text.match(/\((\d+)\)/)[1], 10);
             return extractNumber(a.fileName) - extractNumber(b.fileName);
         });
+    const result = itemsSorted.reduce((result, _, i) => {
+        if (i % 3 === 0) {
+            result.push({
+                ...itemsSorted[i],
+                ...itemsSorted[i + 1],
+                ...itemsSorted[i + 2],
+                fileNames: [
+                    itemsSorted[i].fileName,
+                    itemsSorted[i + 1].fileName,
+                    itemsSorted[i + 2].fileName,
+                ]
+            });
+        }
+        return result;
+    }, []);
 
-    const matchesRaw = mergeArrayItems(itemsSorted);
-    return matchesRaw//filterDataResults(matchesRaw);
+    return result;
 }
 
-function mergePlayerData(data) {
+function parsePlayerData(data) {
     const result = data.map((item) => {
-       
-
         const colorIds = item?.strategemColorIds?.length > item?.weaponColorIds?.length ? item.strategemColorIds : item.weaponColorIds;
-        console.log(getScreenshotId(item.fileName))
-        console.log(item.playersLvl)
-        console.log(colorIds)
 
         const players = colorIds.map((id, index) => {
             return {
@@ -466,22 +499,23 @@ function mergePlayerData(data) {
             }
         });
         return {
-            id: getScreenshotId(item.fileName),
+            fileNames: item.fileNames,
             createdAt: item.createdAt,
             planet: item.planet,
             faction: item.faction,
             mission: item.mission,
             difficulty: item.difficulty,
             players: players,
+            modifiers: []
             // ...item,
            // playersLvl: item.playersLvl,
         }
     })
-    return result;
+    return filterDataResults(result);
 }
 
-function normalizeLvl(ocrResults) {
-    return ocrResults.map(item => {
+function normalizeLvl(data) {
+    return data.map(item => {
         const match = item.match(/\d+/g);
         let value = match ? Number(match.join("")) : null;
         while (value > 150) {
@@ -517,5 +551,5 @@ export {
     getPixelColorAt,
     getColorId,
     validateDiffs2,
-    mergePlayerData
+    parsePlayerData
 }
