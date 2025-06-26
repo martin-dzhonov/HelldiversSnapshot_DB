@@ -241,6 +241,18 @@ const getColorId = (pixel) => {
     return result;
 }
 
+const validateWeapons = (weapons) => {
+    const result = weapons.map((item) => {
+        if (item.diff > 450 || item.match === "empty.png") {
+            return null;
+        } else {
+            return item.match.replace(/_new/g, '').replace(/.png/g, '')
+        }
+    })
+
+    return result;
+};
+
 const validateDiffs = (playerGroups) => {
     const result = playerGroups
         .filter(group => !group.some(({ match, diff }) => diff > 400))
@@ -275,6 +287,21 @@ const getDifficultyInt = (text) => {
     })
 
     return 7 + diffIndex;
+}
+
+const normalizeFromSet = (text, set, threshold = 0.65) => {
+    let bestMatch = null;
+    let highestSimilarity = 0;
+
+    set.forEach(item => {
+        const simScore = stringMatchScore(text, item);
+        if (simScore > highestSimilarity && simScore >= threshold) {
+            highestSimilarity = simScore;
+            bestMatch = item;
+        }
+    });
+
+    return bestMatch;
 }
 
 function getPlanetName(planetNameRaw) {
@@ -353,7 +380,7 @@ async function getFactionIndices() {
     };
 }
 
-async function  normalizeIds(matches) {
+async function normalizeIds(matches) {
     let { terminidIndex, automatonIndex, illuminateIndex } = await getFactionIndices();
 
     const result = matches.map((match) => {
@@ -361,15 +388,15 @@ async function  normalizeIds(matches) {
         switch (match.faction) {
             case "terminid":
                 index = terminidIndex;
-                terminidIndex = terminidIndex + 3;
+                terminidIndex = terminidIndex + 8;
                 break;
             case "automaton":
                 index = automatonIndex;
-                automatonIndex = automatonIndex + 3;
+                automatonIndex = automatonIndex + 8;
                 break;
             case "illuminate":
                 index = illuminateIndex;
-                illuminateIndex = illuminateIndex + 3;
+                illuminateIndex = illuminateIndex + 8;
                 break;
             default:
                 break;
@@ -426,26 +453,31 @@ function filterUniqueSubarraysInChunks(data, chunkSize) {
 function filterDuplicatesInChunks(data, chunkSize) {
     const seen = new Set();
     const result = [];
-  
+
     for (let i = 0; i < data.length; i += chunkSize) {
-      const chunk = data.slice(i, i + chunkSize);
+        const chunk = data.slice(i, i + chunkSize);
 
-      result.push(...chunk.filter(item => {
-        const key = JSON.stringify([
-          [...item.players.map(player => (player.strategem || []).slice().sort())]
-            .sort((a, b) => a.join().localeCompare(b.join())),
-          [...item.players.map(player => (player.weapons || []).slice().sort())]
-            .sort((a, b) => a.join().localeCompare(b.join()))
-        ]);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      }));
+        result.push(...chunk.filter(item => {
+            const players = item.players || [];
+
+            const strategemData = players.map(player =>
+                (player?.strategem || []).slice().sort()
+            ).sort((a, b) => a.join().localeCompare(b.join()));
+
+            const weaponsData = players.map(player =>
+                (player?.weapons || []).slice().sort()
+            ).sort((a, b) => a.join().localeCompare(b.join()));
+
+            const key = JSON.stringify([strategemData, weaponsData]);
+
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        }));
     }
-  
-    return result;
-  }
 
+    return result;
+}
 
 function filterDataResults(items) {
     const baseFiltered = items.filter(
@@ -455,7 +487,7 @@ function filterDataResults(items) {
             item.difficulty > 6
     );
 
-    const result = filterDuplicatesInChunks(baseFiltered, 20);
+    const result = filterDuplicatesInChunks(baseFiltered, 30);
 
     return result;
 };
@@ -470,15 +502,16 @@ function mergeDataResults(loadoutResult, briefingResult, thirdResult) {
         });
     const result = itemsSorted.reduce((result, _, i) => {
         if (i % 3 === 0) {
+            const fileNames = [];
+            const firstFileId = getScreenshotId(itemsSorted[i].fileName);
+            for (let i = 0; i < 8; i++) {
+                fileNames.push(getFileFromId(firstFileId + i));
+            }
             result.push({
                 ...itemsSorted[i],
                 ...itemsSorted[i + 1],
                 ...itemsSorted[i + 2],
-                fileNames: [
-                    itemsSorted[i].fileName,
-                    itemsSorted[i + 1].fileName,
-                    itemsSorted[i + 2].fileName,
-                ]
+                fileNames
             });
         }
         return result;
@@ -492,10 +525,24 @@ function parsePlayerData(data) {
         const colorIds = item?.strategemColorIds?.length > item?.weaponColorIds?.length ? item.strategemColorIds : item.weaponColorIds;
 
         const players = colorIds.map((id, index) => {
+
+            const strategem = item.strategem && item.strategem[index] ? item.strategem[index] : null;
+            const armor = item.armors && item.armors[index] ? item.armors[index] : null;
+            let weapons = [item.primaries[index], item.secondaries[index], item.throwables[index]];
+            const level = item.playersLvl && item.playersLvl[id] ? item.playersLvl[id] : null;
+
+            if (weapons.some(e => e === null || e === undefined)) {
+                weapons = null;
+            }
+            if (weapons === null && strategem === null) {
+                return null;
+            }
+
             return {
-                strategem: item.strategem && item.strategem[index] ? item.strategem[index] : null,
-                weapons: item.weapons && item.weapons[index] ? item.weapons[index] : null,
-                level: item.playersLvl && item.playersLvl[id] ? item.playersLvl[id] : null
+                strategem,
+                armor,
+                weapons,
+                level
             }
         });
         return {
@@ -508,7 +555,7 @@ function parsePlayerData(data) {
             players: players,
             modifiers: []
             // ...item,
-           // playersLvl: item.playersLvl,
+            // playersLvl: item.playersLvl,
         }
     })
     return filterDataResults(result);
@@ -523,6 +570,15 @@ function normalizeLvl(data) {
         }
         return value;
     });
+}
+
+function getWeaponsFiles(loadoutFile, playerCount, modifier) {
+    const result = [];
+    for (let i = 0; i < playerCount; i++) {
+        const screenshotId = getScreenshotId(loadoutFile);
+        result.push(`${dir_latest}/${getFileFromId(screenshotId + 1 + modifier + (i * 2))}`)
+    }
+    return result;
 }
 
 export {
@@ -551,5 +607,8 @@ export {
     getPixelColorAt,
     getColorId,
     validateDiffs2,
-    parsePlayerData
+    parsePlayerData,
+    getWeaponsFiles,
+    normalizeFromSet,
+    validateWeapons
 }

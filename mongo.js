@@ -18,6 +18,7 @@ const gameSchema = new mongoose.Schema({
         {
             strategem: [String],
             weapons: [String],
+            armor: String,
             level: String
         }
     ],
@@ -26,10 +27,10 @@ const gameSchema = new mongoose.Schema({
 
 const GameModel = mongoose.model("matches", gameSchema);
 const GameModelBackup = mongoose.model("matches_backup", gameSchema);
-const GameModelTest = mongoose.model("matches_test1", gameSchema);
+const GameModelBackup_1 = mongoose.model("matches_backup_2", gameSchema);
 
 export {
     GameModel,
     GameModelBackup,
-    GameModelTest
+    GameModelBackup_1,
 }
