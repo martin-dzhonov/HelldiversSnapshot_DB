@@ -64,122 +64,11 @@ app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
 
-app.get('/filter', async (req, res) => {
-    console.time('Execution Time');
-    const files = await fsPromises.readdir(dir_latest);
-    const pixelData = [];
-    const validPairs = [];
-
-    for (const file of files) {
-        const imageSharp = await getImageData(file);
-        console.log(file);
-        const lPixel = getPixelAt(585, 225, imageSharp.buffer)
-        const bPixel = getPixelAt(80, 100, imageSharp.buffer)
-
-        pixelData.push({
-            file,
-            isLoadout: isLoadout(lPixel),
-            isBriefing: isBriefing(bPixel)
-        })
-    }
-
-    // for (let i = 0; i < pixelData.length - 2; i++) {
-    //     const element = pixelData[i];
-    //     const element_1 = pixelData[i + 1];
-    //     const element_2 = pixelData[i + 2];
-
-    //     if (isLoadout(element.lPixel) && isLoadout(element_1.lPixel) && isBriefing(element_2.bPixel)) {
-    //         validPairs.push(element.file);
-    //         validPairs.push(element_1.file);
-    //         validPairs.push(element_2.file);
-    //     }
-    // }
-    for (let i = 7; i < pixelData.length; i++) {
-        const element = pixelData[i];
-        if (element.isBriefing) {
-            let flag = true;
-            for (let j = 1; j < 8; j++) {
-                const newIndex = i - j;
-                const isLoadout = pixelData[newIndex].isLoadout;
-                if (!isLoadout) {
-                    flag = false;
-                }
-            }
-            if (flag) {
-                validPairs.push(element.file);
-                for (let j = 1; j < 8; j++) {
-                    const newIndex = i - j
-                    validPairs.push(pixelData[newIndex].file);
-                }
-            }
-        }
-
-    }
-
-    const invalidFiles = files.filter((el) => { return validPairs.indexOf(el) < 0; });
-    await deleteFilesBulk(invalidFiles.map((item) => `${dir_latest}/${item}`));
-
-    console.timeEnd('Execution Time');
-    res.send({ "Matches found:": validPairs.length });
+app.get('/', (req, res) => {
+    res.send('Welcome to my server!');
 });
 
 app.get('/generate', async (req, res) => {
-    console.time('Execution Time');
-
-    const files = await fsPromises.readdir(dir_latest);
-    const loadoutFiles = files.filter((item, index) => index % 3 === 0).map((item) => `${dir_latest}/${item}`);
-    const weaponsFiles = files.filter((item, index) => index % 3 === 1).map((item) => `${dir_latest}/${item}`);
-    const briefingFiles = files.filter((item, index) => index % 3 === 2).map((item) => `${dir_latest}/${item}`);
-
-    const [loadoutResult, weaponsResult, briefingResult] = await Promise.all(
-        [getLoadoutData(loadoutFiles), getWeaponsData(weaponsFiles), getBriefingData(briefingFiles)]);
-
-    const matchesRaw = mergeDataResults(loadoutResult, weaponsResult, briefingResult);
-    const matchesParse = parsePlayerData(matchesRaw);
-    const matches = await normalizeIds(matchesParse);
-
-    matches.forEach((match) => {
-        const fileNames = match.fileNames;
-        fileNames.forEach((fileName, index) => {
-            fsPromises.rename(fileName, `Screenshots/${match.faction}/latest/${getFileFromId(match.id + index)}`,
-                function (err) { if (err) throw err; });
-        });
-    });
-
-    const result = matches.map((match) => {
-        const { fileNames, ...trimmed } = match;
-        return trimmed;
-    })
-
-    await GameModel.insertMany(matches, { ordered: false });
-
-    console.timeEnd('Execution Time');
-    res.send(result);
-});
-
-app.get('/upload', async (req, res) => {
-    const stitchingPromises = [];
-
-    for (const faction of factionNames) {
-        const dir = `Screenshots/${faction}/latest`;
-        const files = await fsPromises.readdir(dir);
-
-        for (let i = 0; i < files.length; i += 8) {
-            const img1 = `${dir}/${files[i]}`;
-            const img2 = `${dir}/${files[i + 1]}`;
-            const img3 = `${dir}/${files[i + 7]}`;
-            stitchingPromises.push(stitchAndUpload(img1, img2, img3, files[i]));
-        }
-    }
-
-    await Promise.all(stitchingPromises);
-
-    res.send({ message: 'Images uploaded successfully!' });
-});
-// const equipmentFiles = files.filter((item, index) => index % 8 > 0 && index % 8 < 7);
-
-//     const weaponsFiles = equipmentFiles.filter((item, index) => index % 2 === 0).map((item) => `${dir_latest}/${item}`);
-app.get('/generate_1', async (req, res) => {
     console.time('Execution Time');
 
     const files = await fsPromises.readdir(dir_latest);
@@ -239,6 +128,122 @@ app.get('/generate_1', async (req, res) => {
     res.send({matchesRaw, matchesParse});
 });
 
+app.get('/filter', async (req, res) => {
+    console.time('Execution Time');
+    const files = await fsPromises.readdir(dir_latest);
+    const pixelData = [];
+    const validPairs = [];
+
+    for (const file of files) {
+        const imageSharp = await getImageData(file);
+        console.log(file);
+        const lPixel = getPixelAt(585, 225, imageSharp.buffer)
+        const bPixel = getPixelAt(80, 100, imageSharp.buffer)
+
+        pixelData.push({
+            file,
+            isLoadout: isLoadout(lPixel),
+            isBriefing: isBriefing(bPixel)
+        })
+    }
+
+    for (let i = 7; i < pixelData.length; i++) {
+        const element = pixelData[i];
+        if (element.isBriefing) {
+            let flag = true;
+            for (let j = 1; j < 8; j++) {
+                const newIndex = i - j;
+                const isLoadout = pixelData[newIndex].isLoadout;
+                if (!isLoadout) {
+                    flag = false;
+                }
+            }
+            if (flag) {
+                validPairs.push(element.file);
+                for (let j = 1; j < 8; j++) {
+                    const newIndex = i - j
+                    validPairs.push(pixelData[newIndex].file);
+                }
+            }
+        }
+
+    }
+
+    const invalidFiles = files.filter((el) => { return validPairs.indexOf(el) < 0; });
+    await deleteFilesBulk(invalidFiles.map((item) => `${dir_latest}/${item}`));
+
+    console.timeEnd('Execution Time');
+    res.send({ "Matches found:": validPairs.length });
+});
+
+app.get('/upload', async (req, res) => {
+    const stitchingPromises = [];
+
+    for (const faction of factionNames) {
+        const dir = `Screenshots/${faction}/latest`;
+        const files = await fsPromises.readdir(dir);
+
+        for (let i = 0; i < files.length; i += 8) {
+            const img1 = `${dir}/${files[i]}`;
+            const img2 = `${dir}/${files[i + 1]}`;
+            const img3 = `${dir}/${files[i + 7]}`;
+            stitchingPromises.push(stitchAndUpload(img1, img2, img3, files[i]));
+        }
+    }
+
+    await Promise.all(stitchingPromises);
+
+    res.send({ message: 'Images uploaded successfully!' });
+});
+
+app.get('/seed', async (req, res) => {
+    const data = await GameModelBackup.find().lean();
+    const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
+    await GameModel.insertMany(newData);
+    res.send("Data copied successfully.");
+});
+
+app.get('/backup', async (req, res) => {
+    await GameModelBackup.deleteMany({});
+    const data = await GameModel.find().lean();
+    const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
+    await GameModelBackup.insertMany(newData);
+    res.send("Data copied successfully.");
+});
+
+app.get('/getAssets', async (req, res) => {
+    //244049
+    const filePath = 'Screenshots/ulatest/Screenshot (724720).png';
+    processMultipleCrops(filePath)
+        .then(results => {
+            results.forEach((result, index) => {
+                fsPromises.writeFile(`assets/${index}.png`, result);
+            });
+        })
+        .catch(console.error);
+})
+
+async function processMultipleCrops(filePath) {
+    const buffer = await fsPromises.readFile(filePath);
+    const results = [];
+    for (const { x, y, regionWidth, regionHeight } of weaponsCrops.flat()) {
+        const result = await processImage(buffer, x, y, regionWidth, regionHeight);
+        results.push(result);
+    }
+    return results;
+}
+
+async function processImage(buffer, x, y, regionWidth, regionHeight) {
+    try {
+        const croppedImage = await sharp(buffer)
+            .extract({ left: x, top: y, width: regionWidth, height: regionHeight })
+            .toBuffer();
+        return croppedImage;
+    } catch (error) {
+        console.error('Error processing image:', error);
+        throw error;
+    }
+}
 
 async function getEquiptmentData(files, isArmors) {
     const limit = pLimit(100);
@@ -435,58 +440,6 @@ app.get('/games/:faction/:id', (req, res) => {
         });
 });
 
-app.get('/seed', async (req, res) => {
-    const data = await GameModelBackup.find().lean();
-    const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
-    await GameModel.insertMany(newData);
-    res.send("Data copied successfully.");
-});
-
-app.get('/backup', async (req, res) => {
-    const data = await GameModel.find().lean();
-    const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
-    await GameModelBackup_1.insertMany(newData);
-    res.send("Data copied successfully.");
-});
-
-app.get('/', (req, res) => {
-    res.send('Welcome to my server!');
-});
-
-app.get('/getAssets', async (req, res) => {
-    //244049
-    const filePath = 'Screenshots/ulatest/Screenshot (596428).png';
-    processMultipleCrops(filePath)
-        .then(results => {
-            results.forEach((result, index) => {
-                fsPromises.writeFile(`assets/${index}.png`, result);
-            });
-        })
-        .catch(console.error);
-})
-
-async function processMultipleCrops(filePath) {
-    const buffer = await fsPromises.readFile(filePath);
-    const results = [];
-    for (const { x, y, regionWidth, regionHeight } of loadoutCrops.flat()) {
-        const result = await processImage(buffer, x, y, regionWidth, regionHeight);
-        results.push(result);
-    }
-    return results;
-}
-
-async function processImage(buffer, x, y, regionWidth, regionHeight) {
-    try {
-        const croppedImage = await sharp(buffer)
-            .extract({ left: x, top: y, width: regionWidth, height: regionHeight })
-            .toBuffer();
-        return croppedImage;
-    } catch (error) {
-        console.error('Error processing image:', error);
-        throw error;
-    }
-}
-
 // app.get('/remap', async (req, res) => {
 //     const data = await GameModel.find({}).lean();
 //     const remapped = data.map((item) => {
@@ -521,4 +474,38 @@ async function processImage(buffer, x, y, regionWidth, regionHeight) {
 //     }).catch(function (err) {
 //         res.status(500).send(err);
 //     });
+// });
+
+// app.get('/generate', async (req, res) => {
+//     console.time('Execution Time');
+
+//     const files = await fsPromises.readdir(dir_latest);
+//     const loadoutFiles = files.filter((item, index) => index % 3 === 0).map((item) => `${dir_latest}/${item}`);
+//     const weaponsFiles = files.filter((item, index) => index % 3 === 1).map((item) => `${dir_latest}/${item}`);
+//     const briefingFiles = files.filter((item, index) => index % 3 === 2).map((item) => `${dir_latest}/${item}`);
+
+//     const [loadoutResult, weaponsResult, briefingResult] = await Promise.all(
+//         [getLoadoutData(loadoutFiles), getWeaponsData(weaponsFiles), getBriefingData(briefingFiles)]);
+
+//     const matchesRaw = mergeDataResults(loadoutResult, weaponsResult, briefingResult);
+//     const matchesParse = parsePlayerData(matchesRaw);
+//     const matches = await normalizeIds(matchesParse);
+
+//     matches.forEach((match) => {
+//         const fileNames = match.fileNames;
+//         fileNames.forEach((fileName, index) => {
+//             fsPromises.rename(fileName, `Screenshots/${match.faction}/latest/${getFileFromId(match.id + index)}`,
+//                 function (err) { if (err) throw err; });
+//         });
+//     });
+
+//     const result = matches.map((match) => {
+//         const { fileNames, ...trimmed } = match;
+//         return trimmed;
+//     })
+
+//     await GameModel.insertMany(matches, { ordered: false });
+
+//     console.timeEnd('Execution Time');
+//     res.send(result);
 // });
