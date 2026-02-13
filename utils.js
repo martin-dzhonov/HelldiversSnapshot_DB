@@ -29,7 +29,8 @@ import {
     dir_latest,
     factionPlanets,
     playerColors,
-    modifierNames
+    modifierNames,
+    subfactionNames
 } from './constants.js';
 
 async function tesseractRecognize(buffer) {
@@ -264,11 +265,11 @@ const validateDiffs = (playerGroups) => {
 
 const validateDiffs2 = (playerGroups) => {
     const result = playerGroups.map((group) => {
-        if (group.every(({ match, diff }) => match === "empty.png" || diff > 420)) {
+        if (group.every(({ match, diff }) => match === "empty.png" || diff > 600)) {
             return null;
         } else {
             return group.map(({ match, diff }) => {
-                if (match === "empty.png" || diff > 420) {
+                if (match === "empty.png" || diff > 600) {
                     return null;
                 } else {
                     return match.replace(/_new/g, '').replace(/.png/g, '')
@@ -302,6 +303,15 @@ const normalizeFromSet = (text, set, threshold = 0.65) => {
     });
 
     return bestMatch;
+}
+
+const parseSubFactions = (subfactionsStr) => {
+    const array = subfactionsStr.split('\n');
+    const filtered = array.filter((item)=> {
+        return item !== "" && !item.includes("STATION")
+    })
+
+    return filtered;
 }
 
 function getPlanetName(planetNameRaw) {
@@ -552,10 +562,9 @@ function parsePlayerData(data) {
             faction: item.faction,
             mission: item.mission,
             difficulty: item.difficulty,
+            subfactions: item.subfactions,
             players: players,
             modifiers: []
-            // ...item,
-            // playersLvl: item.playersLvl,
         }
     })
     return filterDataResults(result);
@@ -605,6 +614,7 @@ export {
     findBestMatch,
     normalizeLvl,
     getPixelColorAt,
+    parseSubFactions,
     getColorId,
     validateDiffs2,
     parsePlayerData,
