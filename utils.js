@@ -307,11 +307,12 @@ const normalizeFromSet = (text, set, threshold = 0.65) => {
 
 const parseSubFactions = (subfactionsStr) => {
     const array = subfactionsStr.split('\n');
-    const filtered = array.filter((item)=> {
-        return item !== "" && !item.includes("STATION")
+    const normalized = array.map((item)=> {
+        return normalizeFromSet(item, subfactionNames)
     })
+    const filtered = normalized.filter(Boolean);
 
-    return filtered;
+    return filtered
 }
 
 function getPlanetName(planetNameRaw) {
@@ -514,7 +515,7 @@ function mergeDataResults(loadoutResult, briefingResult, thirdResult) {
         if (i % 3 === 0) {
             const fileNames = [];
             const firstFileId = getScreenshotId(itemsSorted[i].fileName);
-            for (let i = 0; i < 8; i++) {
+            for (let i = 0; i < 14; i++) {
                 fileNames.push(getFileFromId(firstFileId + i));
             }
             result.push({
@@ -583,9 +584,10 @@ function normalizeLvl(data) {
 
 function getWeaponsFiles(loadoutFile, playerCount, modifier) {
     const result = [];
+    const screenshotId = getScreenshotId(loadoutFile);
+
     for (let i = 0; i < playerCount; i++) {
-        const screenshotId = getScreenshotId(loadoutFile);
-        result.push(`${dir_latest}/${getFileFromId(screenshotId + 1 + modifier + (i * 2))}`)
+        result.push(`${dir_latest}/${getFileFromId(screenshotId + 1 + modifier + (i * 4))}`)
     }
     return result;
 }
