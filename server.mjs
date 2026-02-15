@@ -112,6 +112,22 @@ app.get('/generate', async (req, res) => {
     console.log('Total execution s:', totalSeconds)
     console.log('Games:', gamesCount)
     console.log('Avg per game:', avgPer)
+
+    // games.forEach((match) => {
+    //     const fileNames = match.fileNames;
+    //     fileNames.forEach((fileName, index) => {
+    //         fsPromises.rename(`Screenshots/ulatest/${fileName}`, `Screenshots/${match.faction}/latest/${getFileFromId(match.id + index)}`,
+    //             function (err) { if (err) throw err; });
+    //     });
+    // });
+
+    // const mongoData = games.map((match) => {
+    //     const { fileNames, ...trimmed } = match;
+    //     return trimmed;
+    // })
+
+    // await GameModel.insertMany(mongoData, { ordered: false });
+
     res.send({ games })
 })
 
@@ -195,13 +211,7 @@ const getLoadoutResults = async matchesRaw => {
 //      res.send({ games });
 // });
 
-// games.forEach((match) => {
-//     const fileNames = match.fileNames;
-//     fileNames.forEach((fileName, index) => {
-//         fsPromises.rename(`Screenshots/ulatest/${fileName}`, `Screenshots/${match.faction}/latest/${getFileFromId(match.id + index)}`,
-//             function (err) { if (err) throw err; });
-//     });
-// });
+
 
 // const mongoData = games.map((match) => {
 //     const { fileNames, ...trimmed } = match;
@@ -220,6 +230,7 @@ app.get('/filter', async (req, res) => {
     const history = [];
 
     for (const file of files) {
+        console.log(file)
         const imageSharp = await getImageData(file);
 
         const lPixel = getPixelAt(585, 225, imageSharp.buffer);
@@ -349,7 +360,7 @@ async function processStrategems(file, assetsData) {
     return {
         fileName: file,
         createdAt: new Date(stats.mtime),
-        strategem: strategems, //validateDiffs2(players),
+        strategem: strategems,
         strategemColorIds: strategemColorIds.filter((item) => item !== null)
     };
 }
@@ -532,7 +543,7 @@ app.get('/backup_1', async (req, res) => {
 });
 
 app.get('/getAssets', async (req, res) => {
-    const filePath = 'Screenshots/ulatest/Screenshot (4478).png';
+    const filePath = 'Screenshots/ulatest/Screenshot (267613).png';
     processMultipleCrops(filePath)
         .then(results => {
             results.forEach((result, index) => {

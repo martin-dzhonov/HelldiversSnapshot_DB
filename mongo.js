@@ -23,6 +23,7 @@ const gameSchema = new mongoose.Schema({
         }
     ],
     modifiers: [],
+    subfactions: []
 })
 
 const GameModel = mongoose.model("matches", gameSchema);

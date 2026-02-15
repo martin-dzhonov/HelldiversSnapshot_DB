@@ -381,7 +381,8 @@ const getMissionModifiers = (text) => {
 async function getFactionIndices() {
     const indices = {};
     for (const faction of factionNames) {
-        const files = await fsPromises.readdir(`Screenshots/${faction}/all/new`);
+        // const files = await fsPromises.readdir(`Screenshots/${faction}/all/new`);
+        const files = await fsPromises.readdir(`Screenshots/${faction}/latest`);
         indices[`${faction}`] = getScreenshotId(files[files.length - 1]) + 1;
     }
     return {
@@ -399,15 +400,15 @@ async function normalizeIds(matches) {
         switch (match.faction) {
             case "terminid":
                 index = terminidIndex;
-                terminidIndex = terminidIndex + 8;
+                terminidIndex = terminidIndex + 14;
                 break;
             case "automaton":
                 index = automatonIndex;
-                automatonIndex = automatonIndex + 8;
+                automatonIndex = automatonIndex + 14;
                 break;
             case "illuminate":
                 index = illuminateIndex;
-                illuminateIndex = illuminateIndex + 8;
+                illuminateIndex = illuminateIndex + 14;
                 break;
             default:
                 break;
