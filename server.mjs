@@ -73,6 +73,41 @@ app.get('/', (req, res) => {
     res.send('Welcome to my server!');
 });
 
+app.get('/getAssets', async (req, res) => {
+    const filePath = 'Screenshots/ulatest/Screenshot (267347).png';
+    processMultipleCrops(filePath)
+        .then(results => {
+            results.forEach((result, index) => {
+                fsPromises.writeFile(`assets/${index}.png`, result);
+            });
+        })
+        .catch(console.error);
+    res.send("Success");
+})
+
+app.get('/generate2', async (req, res) => {
+    const now = () => process.hrtime.bigint()
+    const seconds = (start) => ((Number(now() - start) / 1e9).toFixed(1))
+
+    const files = await getFilesNumeric(dir_latest)
+    const groupSize = 14
+
+    const getGroupedFiles = index =>
+        files
+            .filter((_, i) => i % groupSize === index)
+            .map(item => `${dir_latest}/${item}`)
+
+    const parallelStart = now()
+
+    const [briefingResult] = await Promise.all([
+        getBriefingData(getGroupedFiles(groupSize - 1))
+    ])
+
+    console.log('Parallel data fetch s:', seconds(parallelStart))
+
+    res.send({ briefingResult })
+})
+
 app.get('/generate', async (req, res) => {
     const now = () => process.hrtime.bigint()
     const seconds = (start) => ((Number(now() - start) / 1e9).toFixed(1))
@@ -113,20 +148,20 @@ app.get('/generate', async (req, res) => {
     console.log('Games:', gamesCount)
     console.log('Avg per game:', avgPer)
 
-    // games.forEach((match) => {
-    //     const fileNames = match.fileNames;
-    //     fileNames.forEach((fileName, index) => {
-    //         fsPromises.rename(`Screenshots/ulatest/${fileName}`, `Screenshots/${match.faction}/latest/${getFileFromId(match.id + index)}`,
-    //             function (err) { if (err) throw err; });
-    //     });
-    // });
+    games.forEach((match) => {
+        const fileNames = match.fileNames;
+        fileNames.forEach((fileName, index) => {
+            fsPromises.rename(`Screenshots/ulatest/${fileName}`, `Screenshots/${match.faction}/latest/${getFileFromId(match.id + index)}`,
+                function (err) { if (err) throw err; });
+        });
+    });
 
-    // const mongoData = games.map((match) => {
-    //     const { fileNames, ...trimmed } = match;
-    //     return trimmed;
-    // })
+    const mongoData = games.map((match) => {
+        const { fileNames, ...trimmed } = match;
+        return trimmed;
+    })
 
-    // await GameModel.insertMany(mongoData, { ordered: false });
+    await GameModel.insertMany(mongoData, { ordered: false });
 
     res.send({ games })
 })
@@ -153,74 +188,6 @@ const getLoadoutResults = async matchesRaw => {
         })
     )
 }
-
-// app.get('/generate', async (req, res) => {
-//     console.time('Execution Time');
-
-//     const files = await getFilesNumeric(dir_latest);
-//     const groupSize = 14;
-//     const strategemFiles = files.filter((_, index) => index % groupSize === 0).map((item) => `${dir_latest}/${item}`);
-//     const loadoutFiles = files.filter((_, index) => index % groupSize === 1).map((item) => `${dir_latest}/${item}`);
-//     const briefingFiles = files.filter((_, index) => index % groupSize === groupSize - 1).map((item) => `${dir_latest}/${item}`);
-
-//     const [strategemResult, weaponsResult, briefingResult] = await Promise.all(
-//         [getStrategemData(strategemFiles), getWeaponsData(loadoutFiles), getBriefingData(briefingFiles)]);
-
-//     const matchesRaw = mergeDataResults(strategemResult, weaponsResult, briefingResult);
-
-//     const loadoutResult = await Promise.all(
-//         matchesRaw.map(async (item) => {
-//             const playerCount = item.weaponColorIds.length;
-//             let result = {
-//                 primaries: null,
-//                 armors: null
-//             };
-//             if (playerCount > 0) {
-//                 const primaryFiles = getWeaponsFiles(item.fileNames[0], playerCount, 0);
-//                 const primariesData = await getEquiptmentData(primaryFiles, false, primariesNames);
-
-//                 const secondaryFiles = getWeaponsFiles(item.fileNames[0], playerCount, 1);
-//                 const secondariesData = await getEquiptmentData(secondaryFiles, false, secondariesNames);
-
-//                 const throwablesFiles = getWeaponsFiles(item.fileNames[0], playerCount, 2);
-//                 const throwablesData = await getEquiptmentData(throwablesFiles, false, throwablesNames);
-
-//                 const armorFiles = getWeaponsFiles(item.fileNames[0], playerCount, 3);
-//                 const armorData = await getEquiptmentData(armorFiles, true, []);
-
-//                 result.primaries = primariesData;
-//                 result.secondaries = secondariesData;
-//                 result.throwables = throwablesData;
-//                 result.armors = armorData;
-//             }
-//             return result;
-//         })
-//     );
-
-//     for (let i = 0; i < matchesRaw.length; i++) {
-//         matchesRaw[i].primaries = loadoutResult[i].primaries;
-//         matchesRaw[i].secondaries = loadoutResult[i].secondaries;
-//         matchesRaw[i].throwables = loadoutResult[i].throwables;
-//         matchesRaw[i].armors = loadoutResult[i].armors;
-//     }
-
-
-//      const playerGames = parsePlayerData(matchesRaw);
-//      const games = await normalizeIds(playerGames);
-
-//      res.send({ games });
-// });
-
-
-
-// const mongoData = games.map((match) => {
-//     const { fileNames, ...trimmed } = match;
-//     return trimmed;
-// })
-
-// await GameModel.insertMany(mongoData, { ordered: false });
-
-// res.send({loadoutFiles: loadoutFiles, briefingFiles: briefingFiles, weaponsFiles: weaponsFiles});
 
 app.get('/filter', async (req, res) => {
     console.time('Execution Time');
@@ -291,11 +258,16 @@ app.get('/upload', async (req, res) => {
         const dir = `Screenshots/${faction}/latest`;
         const files = await fsPromises.readdir(dir);
 
-        for (let i = 0; i < files.length; i += 8) {
+        for (let i = 0; i < files.length; i += 14) {
+            if (!files[i + 13]) continue;
+
             const img1 = `${dir}/${files[i]}`;
             const img2 = `${dir}/${files[i + 1]}`;
-            const img3 = `${dir}/${files[i + 7]}`;
-            stitchingPromises.push(stitchAndUpload(img1, img2, img3, files[i]));
+            const img3 = `${dir}/${files[i + 13]}`;
+
+            stitchingPromises.push(
+                stitchAndUpload(img1, img2, img3, files[i])
+            );
         }
     }
 
@@ -360,7 +332,7 @@ async function processStrategems(file, assetsData) {
     return {
         fileName: file,
         createdAt: new Date(stats.mtime),
-        strategem: strategems,
+        strategem: validateDiffs2(strategems),
         strategemColorIds: strategemColorIds.filter((item) => item !== null)
     };
 }
@@ -397,43 +369,10 @@ async function getBriefingData(files) {
 }
 
 async function processBriefing(file) {
-    let lvlResults = null;
-    let lvlOffset = 0;
-
     const buffer = await fsPromises.readFile(file);
     const image = sharp(buffer);
 
-    // const color = await getPixelColorAt(63, 365, sharp(imageBuffer));
-
-    const imageBuffer = await image.clone().toBuffer();
-
-    let yCoord = 290;
-    let seekStart = true;
-    let seekEnd = true;
-    let startCoord = 0;
-    let endCoord = 0;
-
-    while (seekStart) {
-        const color = await getPixelColorAt(65, yCoord, sharp(imageBuffer));
-        if (color.r > 40 && color.g > 50 && color.b > 60) {
-            seekStart = false;
-            startCoord = yCoord;
-        }
-        yCoord += 6
-    }
-
-    while (seekEnd) {
-        const color = await getPixelColorAt(65, yCoord, sharp(imageBuffer));
-        if (color.r < 40 && color.g < 50 && color.b < 60) {
-            seekEnd = false;
-            endCoord = yCoord;
-        }
-        yCoord += 4
-    }
-
-    const modifiersArea = { left: 109, top: startCoord, width: 350, height: endCoord - startCoord }
-
-    const newAreas = [...briefingAreas, modifiersArea];
+    const newAreas = [{ left: 123, top: 5, width: 410, height: 45 }];
 
     const ocr = await Promise.all(
         newAreas.map(async ({ left, top, width, height }) => {
@@ -444,64 +383,116 @@ async function processBriefing(file) {
         })
     );
 
-    const [planetData, missionNameData, difficultyData, p1, p2, p3, subfactions] = ocr;
-
-
-    lvlResults = normalizeLvl([p1, p2, p3]);
-    if (lvlResults.every(item => item === null)) {
-        lvlOffset = 55;
-    }
-
-    if (lvlOffset) {
-        const lvlOcrOffset = await Promise.all(
-            playerLvlAreas.map(async ({ left, top, width, height }) => {
-                const cropBuffer = await image.clone()
-                    .extract({ left, top: top - lvlOffset, width, height })
-                    .toBuffer();
-                return tesseractRecognize(cropBuffer);
-            })
-        );
-        lvlResults = normalizeLvl(lvlOcrOffset);
-    }
-
-    const playerColorIds = await Promise.all(
-        briefingColorCoords.map(async ({ left, top }) => {
-            const color = await getPixelColorAt(left, top - lvlOffset, image);
-            return getColorId(color);
-        })
-    );
-
-    const playersLvl = playerColorIds.filter((item) => item !== null)
-        .map((id, index) => {
-            return {
-                colorId: id,
-                level: lvlResults[index]
-            }
-        }).reduce((acc, { colorId, level }) => {
-            acc[colorId] = level;
-            return acc;
-        }, {});
-
-    const { planetName, faction } = getFaction(planetData);
-    const normalized = normalizeFromSet(missionNameData.replace(/\n/g, ''), missionNames.flat());
-
-    if (!normalized) {
-        console.log('----------')
-        console.log(file);
-        console.log(missionNameData.replace(/\n/g, ''));
-        console.log(normalizeFromSet(missionNameData.replace(/\n/g, ''), missionNames.flat()));
-    }
+    const [planetData] = ocr;
 
     return {
-        fileName: file,
-        planet: planetName,
-        faction,
-        mission: normalizeFromSet(missionNameData.replace(/\n/g, ''), missionNames.flat()),
-        difficulty: getDifficultyInt(difficultyData),
-        playersLvl,
-        subfactions: parseSubFactions(subfactions)
+        planet: planetData,
     };
 }
+
+// async function processBriefing(file) {
+//     let lvlResults = null;
+//     let lvlOffset = 0;
+
+//     const buffer = await fsPromises.readFile(file);
+//     const image = sharp(buffer);
+//     const imageBuffer = await image.clone().toBuffer();
+
+//     let yCoord = 290;
+//     let seekStart = true;
+//     let seekEnd = true;
+//     let startCoord = 0;
+//     let endCoord = 0;
+
+//     while (seekStart) {
+//         const color = await getPixelColorAt(65, yCoord, sharp(imageBuffer));
+//         if (color.r > 40 && color.g > 50 && color.b > 60) {
+//             seekStart = false;
+//             startCoord = yCoord;
+//         }
+//         yCoord += 6
+//     }
+
+//     while (seekEnd) {
+//         const color = await getPixelColorAt(65, yCoord, sharp(imageBuffer));
+//         if (color.r < 40 && color.g < 50 && color.b < 60) {
+//             seekEnd = false;
+//             endCoord = yCoord;
+//         }
+//         yCoord += 4
+//     }
+
+//     const modifiersArea = { left: 109, top: startCoord, width: 350, height: endCoord - startCoord }
+
+//     const newAreas = [...briefingAreas, modifiersArea];
+
+//     const ocr = await Promise.all(
+//         newAreas.map(async ({ left, top, width, height }) => {
+//             const bufferCrop = await image.clone()
+//                 .extract({ left, top, width, height })
+//                 .toBuffer();
+//             return tesseractRecognize(bufferCrop);
+//         })
+//     );
+
+//     const [planetData, missionNameData, difficultyData, p1, p2, p3, subfactions] = ocr;
+
+
+//     lvlResults = normalizeLvl([p1, p2, p3]);
+//     if (lvlResults.every(item => item === null)) {
+//         lvlOffset = 55;
+//     }
+
+//     if (lvlOffset) {
+//         const lvlOcrOffset = await Promise.all(
+//             playerLvlAreas.map(async ({ left, top, width, height }) => {
+//                 const cropBuffer = await image.clone()
+//                     .extract({ left, top: top - lvlOffset, width, height })
+//                     .toBuffer();
+//                 return tesseractRecognize(cropBuffer);
+//             })
+//         );
+//         lvlResults = normalizeLvl(lvlOcrOffset);
+//     }
+
+//     const playerColorIds = await Promise.all(
+//         briefingColorCoords.map(async ({ left, top }) => {
+//             const color = await getPixelColorAt(left, top - lvlOffset, image);
+//             return getColorId(color);
+//         })
+//     );
+
+//     const playersLvl = playerColorIds.filter((item) => item !== null)
+//         .map((id, index) => {
+//             return {
+//                 colorId: id,
+//                 level: lvlResults[index]
+//             }
+//         }).reduce((acc, { colorId, level }) => {
+//             acc[colorId] = level;
+//             return acc;
+//         }, {});
+
+//     const { planetName, faction } = getFaction(planetData);
+//     const normalized = normalizeFromSet(missionNameData.replace(/\n/g, ''), missionNames.flat());
+
+//     if (!normalized) {
+//         console.log('----------')
+//         console.log(file);
+//         console.log(missionNameData.replace(/\n/g, ''));
+//         console.log(normalizeFromSet(missionNameData.replace(/\n/g, ''), missionNames.flat()));
+//     }
+
+//     return {
+//         fileName: file,
+//         planet: planetName,
+//         faction,
+//         mission: normalizeFromSet(missionNameData.replace(/\n/g, ''), missionNames.flat()),
+//         difficulty: getDifficultyInt(difficultyData),
+//         playersLvl,
+//         subfactions: parseSubFactions(subfactions)
+//     };
+// }
 
 async function getFilesNumeric(dir) {
     const files = await fsPromises.readdir(dir);
@@ -520,6 +511,7 @@ async function getFilesNumeric(dir) {
 }
 
 app.get('/seed', async (req, res) => {
+    await GameModel.deleteMany({});
     const data = await GameModelBackup.find().lean();
     const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
     await GameModel.insertMany(newData);
@@ -534,25 +526,13 @@ app.get('/backup', async (req, res) => {
     res.send("Data copied successfully.");
 });
 
-app.get('/backup_1', async (req, res) => {
+app.get('/backup_1', async ( req, res) => {
     await GameModelBackup_1.deleteMany({});
-    const data = await GameModelBackup.find().lean();
+    const data = await GameModel.find().lean();
     const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
     await GameModelBackup_1.insertMany(newData);
     res.send("Data copied successfully.");
 });
-
-app.get('/getAssets', async (req, res) => {
-    const filePath = 'Screenshots/ulatest/Screenshot (267613).png';
-    processMultipleCrops(filePath)
-        .then(results => {
-            results.forEach((result, index) => {
-                fsPromises.writeFile(`assets/${index}.png`, result);
-            });
-        })
-        .catch(console.error);
-    res.send("Success");
-})
 
 async function processMultipleCrops(filePath) {
     const buffer = await fsPromises.readFile(filePath);

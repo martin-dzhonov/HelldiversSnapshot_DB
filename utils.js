@@ -244,10 +244,11 @@ const getColorId = (pixel) => {
 
 const validateWeapons = (weapons) => {
     const result = weapons.map((item) => {
-        if (item.diff > 450 || item.match === "empty.png") {
+        if (item.diff > 600 || item.match === "empty.png") {
             return null;
         } else {
-            return item.match.replace(/_new/g, '').replace(/.png/g, '')
+            const formatted =  item.match.replace(/_new/g, '').replace(/_2/g, '').replace(/.png/g, '');
+            return formatted;
         }
     })
 
@@ -256,9 +257,9 @@ const validateWeapons = (weapons) => {
 
 const validateDiffs = (playerGroups) => {
     const result = playerGroups
-        .filter(group => !group.some(({ match, diff }) => diff > 400))
+        .filter(group => !group.some(({ match, diff }) => diff > 600))
         .filter(group => !group.every(({ match, diff }) => match === "empty.png"))
-        .map(group => group.map(({ match }) => match.replace(/_new/g, '').replace(/.png/g, '')).filter((match) => match !== "empty"))
+        .map(group => group.map(({ match }) => match.replace(/_new/g, '').replace(/_2/g, '').replace(/.png/g, '')).filter((match) => match !== "empty"))
         .filter(group => group.length > 2)
     return playerGroups;
 };
@@ -272,7 +273,7 @@ const validateDiffs2 = (playerGroups) => {
                 if (match === "empty.png" || diff > 600) {
                     return null;
                 } else {
-                    return match.replace(/_new/g, '').replace(/.png/g, '')
+                    return match.replace(/_2/g, '').replace(/_new/g, '').replace(/.png/g, '')
                 }
             });
         }
@@ -311,8 +312,8 @@ const parseSubFactions = (subfactionsStr) => {
         return normalizeFromSet(item, subfactionNames)
     })
     const filtered = normalized.filter(Boolean);
-
-    return filtered
+    const unique = [...new Set(filtered)];
+    return unique
 }
 
 function getPlanetName(planetNameRaw) {
@@ -381,8 +382,8 @@ const getMissionModifiers = (text) => {
 async function getFactionIndices() {
     const indices = {};
     for (const faction of factionNames) {
-        // const files = await fsPromises.readdir(`Screenshots/${faction}/all/new`);
-        const files = await fsPromises.readdir(`Screenshots/${faction}/latest`);
+        const files = await fsPromises.readdir(`Screenshots/${faction}/all/new`);
+        //const files = await fsPromises.readdir(`Screenshots/${faction}/latest`);
         indices[`${faction}`] = getScreenshotId(files[files.length - 1]) + 1;
     }
     return {
@@ -623,5 +624,6 @@ export {
     parsePlayerData,
     getWeaponsFiles,
     normalizeFromSet,
-    validateWeapons
+    validateWeapons,
+    getScreenshotId
 }

@@ -17,10 +17,10 @@ export const loadoutCrops = [
         { x: 1242, y: 844, regionWidth: 66, regionHeight: 66 }
     ],
     [
-        { x: 1451, y: 844, regionWidth: 66, regionHeight: 66 },
-        { x: 1536, y: 844, regionWidth: 66, regionHeight: 66 },
-        { x: 1621, y: 844, regionWidth: 66, regionHeight: 66 },
-        { x: 1706, y: 844, regionWidth: 66, regionHeight: 66 }
+        { x: 1452, y: 844, regionWidth: 66, regionHeight: 66 },
+        { x: 1537, y: 844, regionWidth: 66, regionHeight: 66 },
+        { x: 1622, y: 844, regionWidth: 66, regionHeight: 66 },
+        { x: 1707, y: 844, regionWidth: 66, regionHeight: 66 }
     ]
 ];
 
@@ -89,6 +89,10 @@ export const playerColors = [
     { r: 129, g: 172, b: 255 },//blue
 ]
 
+
+//shield backpack/ballistic
+//orbital ems/orbital walking
+//dog rover/hot dog
 export const primariesNames = {
     "AR-23": "liberator",
     "AR-23P": "liberator_pen",
@@ -213,11 +217,14 @@ export const armorNames = [
 ];
 
 export const subfactionNames = [
-    "JET BRIGADE FACTORIES",
+    "THE JET BRIGADE",
     "THE INCENERATION CORPS",
     "CYBORGS",
     "HEAVY ARMOR SURGE",
-    "HULK SURGE"
+    "HULK SURGE",
+    "RUPTURE STRAIN",
+    "PREDATOR STRAIN",
+    "HIVE LORDS"
 ];
 
 
