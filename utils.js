@@ -6,8 +6,6 @@ const pixelmatch = require('pixelmatch').default;
 
 const fsPromises = require('fs').promises;
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
-const { createWorker } = require('tesseract.js');
-const tesseractWorker = await createWorker('eng');
 
 dotenv.config();
 const bucketName = process.env.BUCKET_NAME;
@@ -32,11 +30,6 @@ import {
     modifierNames,
     subfactionNames
 } from './constants.js';
-
-async function tesseractRecognize(buffer) {
-    const { data: { text } } = await tesseractWorker.recognize(buffer);
-    return text;
-}
 
 async function deleteFilesBulk(filePaths) {
     const deletionPromises = filePaths.map(async (filePath) => {
@@ -597,7 +590,6 @@ function getWeaponsFiles(loadoutFile, playerCount, modifier) {
 export {
     getImageData,
     loadAssetsFolder,
-    tesseractRecognize,
     getFileFromId,
     processCropGroup,
     getDifficultyInt,

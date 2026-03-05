@@ -8,9 +8,13 @@ const fsPromises = require('fs').promises;
 const sharp = require('sharp');
 const { PNG } = require('pngjs');
 const mongoose = require('mongoose');
+import os from 'os'
 
+const CPU_COUNT = os.cpus().length
 const app = express();
 const port = 3001;
+
+
 
 import { GameModel, GameModelBackup, GameModelBackup_1 } from './mongo.js';
 import {
@@ -34,7 +38,6 @@ import {
     processCropGroup,
     loadAssetsFolder,
     getFileFromId,
-    tesseractRecognize,
     getDifficultyInt,
     getFaction,
     getPixelAt,
@@ -55,6 +58,9 @@ import {
     validateWeapons,
     parseSubFactions
 } from './utils.js';
+
+import { initTesseractWorkers, terminateTesseractWorkers, tesseractRecognize } from './tesseract_utils.js';
+
 import { start } from 'repl';
 
 app.use(function (req, res, next) {
@@ -89,6 +95,8 @@ app.get('/generate2', async (req, res) => {
     const now = () => process.hrtime.bigint()
     const seconds = (start) => ((Number(now() - start) / 1e9).toFixed(1))
 
+    const totalStart = now()
+
     const files = await getFilesNumeric(dir_latest)
     const groupSize = 14
 
@@ -105,8 +113,50 @@ app.get('/generate2', async (req, res) => {
 
     console.log('Parallel data fetch s:', seconds(parallelStart))
 
+    const totalSeconds = parseFloat(seconds(totalStart))
+    const gamesCount = files.length / groupSize
+    const avgPer = (totalSeconds / gamesCount).toFixed(1)
+
+    console.log('Total execution s:', totalSeconds)
+    console.log('Games:', gamesCount)
+    console.log('Avg per game:', avgPer)
+
     res.send({ briefingResult })
 })
+
+async function getBriefingData(files) {
+    const limit = pLimit(CPU_COUNT);
+
+    return await Promise.all(
+        files.map(file => limit(() => processBriefing(file)))
+    );
+}
+
+// async function processBriefing(file) {
+//     const buffer = await fsPromises.readFile(file);
+//     const image = sharp(buffer);
+
+//     const newAreas = [{ left: 123, top: 5, width: 410, height: 45 }];
+
+//     const ocr = await Promise.all(
+//         newAreas.map(async ({ left, top, width, height }) => {
+//             const bufferCrop = await image.clone()
+//             .extract({ left, top, width, height })
+//             .resize({ width: width * 2 })
+//             .grayscale()
+//             .threshold(150)
+//             .toBuffer();
+
+//             return tesseractRecognize(bufferCrop);
+//         })
+//     );
+
+//     const [planetData] = ocr;
+
+//     return {
+//         planet: planetData,
+//     };
+// }
 
 app.get('/generate', async (req, res) => {
     const now = () => process.hrtime.bigint()
@@ -277,7 +327,7 @@ app.get('/upload', async (req, res) => {
 });
 
 async function getEquiptmentData(files, isArmors, set) {
-    const limit = pLimit(100);
+    const limit = pLimit(CPU_COUNT);
     return await Promise.all(
         files.map(file => limit(() => processEquipment(file, isArmors, set)))
     );
@@ -308,7 +358,7 @@ async function processEquipment(file, isArmors, set) {
 }
 
 async function getStrategemData(loadoutFiles) {
-    const limit = pLimit(100);
+    const limit = pLimit(CPU_COUNT);
 
     const assetsDir = 'assets/strategem';
     const assetsData = await loadAssetsFolder(assetsDir);
@@ -338,7 +388,7 @@ async function processStrategems(file, assetsData) {
 }
 
 async function getWeaponsData(loadoutFiles) {
-    const limit = pLimit(100);
+    const limit = pLimit(CPU_COUNT);
     return await Promise.all(
         loadoutFiles.map(file => limit(() => processWeapons(file)))
     );
@@ -360,139 +410,113 @@ async function processWeapons(file) {
     };
 }
 
-async function getBriefingData(files) {
-    const limit = pLimit(100);
-
-    return await Promise.all(
-        files.map(file => limit(() => processBriefing(file)))
-    );
-}
-
 async function processBriefing(file) {
+    let lvlResults = null;
+    let lvlOffset = 0;
+
     const buffer = await fsPromises.readFile(file);
     const image = sharp(buffer);
+    const imageBuffer = await image.clone().toBuffer();
 
-    const newAreas = [{ left: 123, top: 5, width: 410, height: 45 }];
+    let yCoord = 290;
+    let seekStart = true;
+    let seekEnd = true;
+    let startCoord = 0;
+    let endCoord = 0;
+
+    while (seekStart) {
+        const color = await getPixelColorAt(65, yCoord, sharp(imageBuffer));
+        if (color.r > 40 && color.g > 50 && color.b > 60) {
+            seekStart = false;
+            startCoord = yCoord;
+        }
+        yCoord += 6
+    }
+
+    while (seekEnd) {
+        const color = await getPixelColorAt(65, yCoord, sharp(imageBuffer));
+        if (color.r < 40 && color.g < 50 && color.b < 60) {
+            seekEnd = false;
+            endCoord = yCoord;
+        }
+        yCoord += 4
+    }
+
+    const modifiersArea = { left: 109, top: startCoord, width: 350, height: endCoord - startCoord }
+
+    const newAreas = [...briefingAreas, modifiersArea];
 
     const ocr = await Promise.all(
         newAreas.map(async ({ left, top, width, height }) => {
             const bufferCrop = await image.clone()
-                .extract({ left, top, width, height })
-                .toBuffer();
+            .extract({ left, top, width, height })
+            .resize({ width: width * 2 })
+            .grayscale()
+            .threshold(150)
+            .toBuffer();
+
             return tesseractRecognize(bufferCrop);
         })
     );
 
-    const [planetData] = ocr;
+    const [planetData, missionNameData, difficultyData, p1, p2, p3, subfactions] = ocr;
+
+
+    lvlResults = normalizeLvl([p1, p2, p3]);
+    if (lvlResults.every(item => item === null)) {
+        lvlOffset = 55;
+    }
+
+    if (lvlOffset) {
+        const lvlOcrOffset = await Promise.all(
+            playerLvlAreas.map(async ({ left, top, width, height }) => {
+                const cropBuffer = await image.clone()
+                    .extract({ left, top: top - lvlOffset, width, height })
+                    .toBuffer();
+                return tesseractRecognize(cropBuffer);
+            })
+        );
+        lvlResults = normalizeLvl(lvlOcrOffset);
+    }
+
+    const playerColorIds = await Promise.all(
+        briefingColorCoords.map(async ({ left, top }) => {
+            const color = await getPixelColorAt(left, top - lvlOffset, image);
+            return getColorId(color);
+        })
+    );
+
+    const playersLvl = playerColorIds.filter((item) => item !== null)
+        .map((id, index) => {
+            return {
+                colorId: id,
+                level: lvlResults[index]
+            }
+        }).reduce((acc, { colorId, level }) => {
+            acc[colorId] = level;
+            return acc;
+        }, {});
+
+    const { planetName, faction } = getFaction(planetData);
+    const normalized = normalizeFromSet(missionNameData.replace(/\n/g, ''), missionNames.flat());
+
+    if (!normalized) {
+        console.log('----------')
+        console.log(file);
+        console.log(missionNameData.replace(/\n/g, ''));
+        console.log(normalizeFromSet(missionNameData.replace(/\n/g, ''), missionNames.flat()));
+    }
 
     return {
-        planet: planetData,
+        fileName: file,
+        planet: planetName,
+        faction,
+        mission: normalizeFromSet(missionNameData.replace(/\n/g, ''), missionNames.flat()),
+        difficulty: getDifficultyInt(difficultyData),
+        playersLvl,
+        subfactions: parseSubFactions(subfactions)
     };
 }
-
-// async function processBriefing(file) {
-//     let lvlResults = null;
-//     let lvlOffset = 0;
-
-//     const buffer = await fsPromises.readFile(file);
-//     const image = sharp(buffer);
-//     const imageBuffer = await image.clone().toBuffer();
-
-//     let yCoord = 290;
-//     let seekStart = true;
-//     let seekEnd = true;
-//     let startCoord = 0;
-//     let endCoord = 0;
-
-//     while (seekStart) {
-//         const color = await getPixelColorAt(65, yCoord, sharp(imageBuffer));
-//         if (color.r > 40 && color.g > 50 && color.b > 60) {
-//             seekStart = false;
-//             startCoord = yCoord;
-//         }
-//         yCoord += 6
-//     }
-
-//     while (seekEnd) {
-//         const color = await getPixelColorAt(65, yCoord, sharp(imageBuffer));
-//         if (color.r < 40 && color.g < 50 && color.b < 60) {
-//             seekEnd = false;
-//             endCoord = yCoord;
-//         }
-//         yCoord += 4
-//     }
-
-//     const modifiersArea = { left: 109, top: startCoord, width: 350, height: endCoord - startCoord }
-
-//     const newAreas = [...briefingAreas, modifiersArea];
-
-//     const ocr = await Promise.all(
-//         newAreas.map(async ({ left, top, width, height }) => {
-//             const bufferCrop = await image.clone()
-//                 .extract({ left, top, width, height })
-//                 .toBuffer();
-//             return tesseractRecognize(bufferCrop);
-//         })
-//     );
-
-//     const [planetData, missionNameData, difficultyData, p1, p2, p3, subfactions] = ocr;
-
-
-//     lvlResults = normalizeLvl([p1, p2, p3]);
-//     if (lvlResults.every(item => item === null)) {
-//         lvlOffset = 55;
-//     }
-
-//     if (lvlOffset) {
-//         const lvlOcrOffset = await Promise.all(
-//             playerLvlAreas.map(async ({ left, top, width, height }) => {
-//                 const cropBuffer = await image.clone()
-//                     .extract({ left, top: top - lvlOffset, width, height })
-//                     .toBuffer();
-//                 return tesseractRecognize(cropBuffer);
-//             })
-//         );
-//         lvlResults = normalizeLvl(lvlOcrOffset);
-//     }
-
-//     const playerColorIds = await Promise.all(
-//         briefingColorCoords.map(async ({ left, top }) => {
-//             const color = await getPixelColorAt(left, top - lvlOffset, image);
-//             return getColorId(color);
-//         })
-//     );
-
-//     const playersLvl = playerColorIds.filter((item) => item !== null)
-//         .map((id, index) => {
-//             return {
-//                 colorId: id,
-//                 level: lvlResults[index]
-//             }
-//         }).reduce((acc, { colorId, level }) => {
-//             acc[colorId] = level;
-//             return acc;
-//         }, {});
-
-//     const { planetName, faction } = getFaction(planetData);
-//     const normalized = normalizeFromSet(missionNameData.replace(/\n/g, ''), missionNames.flat());
-
-//     if (!normalized) {
-//         console.log('----------')
-//         console.log(file);
-//         console.log(missionNameData.replace(/\n/g, ''));
-//         console.log(normalizeFromSet(missionNameData.replace(/\n/g, ''), missionNames.flat()));
-//     }
-
-//     return {
-//         fileName: file,
-//         planet: planetName,
-//         faction,
-//         mission: normalizeFromSet(missionNameData.replace(/\n/g, ''), missionNames.flat()),
-//         difficulty: getDifficultyInt(difficultyData),
-//         playersLvl,
-//         subfactions: parseSubFactions(subfactions)
-//     };
-// }
 
 async function getFilesNumeric(dir) {
     const files = await fsPromises.readdir(dir);
@@ -580,6 +604,10 @@ app.get('/games/:faction/:id', (req, res) => {
             res.send(games);
         });
 });
+
+await initTesseractWorkers();
+process.on('exit', terminateTesseractWorkers);
+process.on('SIGINT', terminateTesseractWorkers);
 
 // app.get('/remap', async (req, res) => {
 //     const data = await GameModel.find({}).lean();

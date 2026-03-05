@@ -26,6 +26,6 @@
         "pngjs": "^7.0.0",
         "sharp": "^0.33.5",
         "ssim.js": "^3.5.0",
-        "tesseract.js": "^5.1.0"
+        "tesseract.js": "^7.0.0"
     }
 }
