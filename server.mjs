@@ -14,8 +14,6 @@ const CPU_COUNT = os.cpus().length
 const app = express();
 const port = 3001;
 
-
-
 import { GameModel, GameModelBackup, GameModelBackup_1 } from './mongo.js';
 import {
     dir_latest,
@@ -80,7 +78,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/getAssets', async (req, res) => {
-    const filePath = 'Screenshots/ulatest/Screenshot (267347).png';
+    const filePath = 'Screenshots/ulatest/Screenshot (649179).png';
     processMultipleCrops(filePath)
         .then(results => {
             results.forEach((result, index) => {
@@ -379,6 +377,7 @@ async function processStrategems(file, assetsData) {
             return getColorId(color);
         })
     );
+
     return {
         fileName: file,
         createdAt: new Date(stats.mtime),
@@ -604,6 +603,8 @@ app.get('/games/:faction/:id', (req, res) => {
             res.send(games);
         });
 });
+
+
 
 await initTesseractWorkers();
 process.on('exit', terminateTesseractWorkers);
