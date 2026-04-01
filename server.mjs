@@ -54,7 +54,8 @@ import {
     getWeaponsFiles,
     normalizeFromSet,
     validateWeapons,
-    parseSubFactions
+    parseSubFactions,
+    getScreenshotId
 } from './utils.js';
 
 import { initTesseractWorkers, terminateTesseractWorkers, tesseractRecognize } from './tesseract_utils.js';
@@ -78,7 +79,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/getAssets', async (req, res) => {
-    const filePath = 'Screenshots/ulatest/Screenshot (649179).png';
+    const filePath = 'Screenshots/ulatest/Screenshot (126).png';
     processMultipleCrops(filePath)
         .then(results => {
             results.forEach((result, index) => {
@@ -180,7 +181,7 @@ app.get('/generate', async (req, res) => {
 
     console.log('Parallel data fetch s:', seconds(parallelStart))
 
-    const matchesRaw = mergeDataResults(strategemResult, weaponsResult, briefingResult)
+     const matchesRaw = mergeDataResults(strategemResult, weaponsResult, briefingResult)
     const loadoutResult = await getLoadoutResults(matchesRaw)
 
     matchesRaw.forEach((match, i) => { Object.assign(match, loadoutResult[i]) })
@@ -444,22 +445,21 @@ async function processBriefing(file) {
     const modifiersArea = { left: 109, top: startCoord, width: 350, height: endCoord - startCoord }
 
     const newAreas = [...briefingAreas, modifiersArea];
-
     const ocr = await Promise.all(
         newAreas.map(async ({ left, top, width, height }) => {
             const bufferCrop = await image.clone()
             .extract({ left, top, width, height })
             .resize({ width: width * 2 })
             .grayscale()
-            .threshold(150)
             .toBuffer();
+
+            //await fsPromises.writeFile(`assets_dump/${getScreenshotId(file)}.png`, bufferCrop);
 
             return tesseractRecognize(bufferCrop);
         })
     );
 
     const [planetData, missionNameData, difficultyData, p1, p2, p3, subfactions] = ocr;
-
 
     lvlResults = normalizeLvl([p1, p2, p3]);
     if (lvlResults.every(item => item === null)) {
@@ -505,7 +505,7 @@ async function processBriefing(file) {
         console.log(missionNameData.replace(/\n/g, ''));
         console.log(normalizeFromSet(missionNameData.replace(/\n/g, ''), missionNames.flat()));
     }
-
+   
     return {
         fileName: file,
         planet: planetName,
@@ -534,7 +534,7 @@ async function getFilesNumeric(dir) {
 }
 
 app.get('/seed', async (req, res) => {
-    await GameModel.deleteMany({});
+    await GameModel.collection.drop().catch(() => {});
     const data = await GameModelBackup.find().lean();
     const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
     await GameModel.insertMany(newData);
@@ -542,7 +542,7 @@ app.get('/seed', async (req, res) => {
 });
 
 app.get('/backup', async (req, res) => {
-    await GameModelBackup.deleteMany({});
+    await GameModelBackup.collection.drop().catch(() => {});
     const data = await GameModel.find().lean();
     const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
     await GameModelBackup.insertMany(newData);

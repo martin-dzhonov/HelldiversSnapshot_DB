@@ -486,13 +486,17 @@ function filterDuplicatesInChunks(data, chunkSize) {
 }
 
 function filterDataResults(items) {
-    const baseFiltered = items.filter(
-        (item) =>
-            item.players.length > 0 &&
-            item.faction !== null &&
-            item.difficulty > 6
+    const baseFiltered = items.filter(item => 
+        item.players.length > 0 &&
+        item.faction !== null &&
+        item.difficulty > 6 &&
+        item.players.some(player =>
+            player &&
+            Array.isArray(player.strategem) &&
+            player.strategem.length > 0 &&
+            player.strategem.every(s => s !== null)
+        )
     );
-
     const result = filterDuplicatesInChunks(baseFiltered, 30);
 
     return result;

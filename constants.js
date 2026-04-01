@@ -89,10 +89,6 @@ export const playerColors = [
     { r: 129, g: 172, b: 255 },//blue
 ]
 
-
-//shield backpack/ballistic
-//orbital ems/orbital walking
-//dog rover/hot dog
 export const primariesNames = {
     "AR-23": "liberator",
     "AR-23P": "liberator_pen",
@@ -141,7 +137,19 @@ export const primariesNames = {
     "R-72": "censor",
     "AR-59": "suppressor",
     "LAS-13": "trident",
+    "SG-97": "sweeper",
+    "SMG/FLAM-34": "stoker",
 };
+
+//SMG/FLAM-34 Stoker
+//SG-97 Sweeper
+//CQC-73 Entrenchment Tool
+//P-69 Veto
+//G-48 Giga Grenade
+
+//A/GM-17 Gas Mortar Sentry
+//B/FLAM-80 Cremator
+
 
 export const secondariesNames = {
     "P-2": "peacemaker",
@@ -165,6 +173,8 @@ export const secondariesNames = {
     "M6C/SOCOM": "m6c",
     "CQC-42": "machete",
     "P-35": "re_educator",
+    "CQC-72": "entrenchment_tool",
+    "P-69": "veto"
 }
 
 export const throwablesNames = {
@@ -186,7 +196,8 @@ export const throwablesNames = {
     "G-7": "pineapple",
     "TM-1": "lure_mine",
     "G-89": "grenade_smokescreen",
-    "G/SH-39": "grenade_shield"
+    "G/SH-39": "grenade_shield",
+    "G-48": "giga_grenade",
 }
 
 export const armorNames = [
@@ -213,7 +224,10 @@ export const armorNames = [
     'Desert Stormer',
     'Rock Solid',
     'Reduced Signature',
-    'Supplementary Adrenaline'
+    'Supplementary Adrenaline',
+    'Concussive Padding, Grenadier',
+    'Concussive Padding, Hazmat',
+    'Concussive Padding, Reinforced'
 ];
 
 export const subfactionNames = [
@@ -224,29 +238,11 @@ export const subfactionNames = [
     "HULK SURGE",
     "RUPTURE STRAIN",
     "PREDATOR STRAIN",
-    "HIVE LORDS"
+    "HIVE LORDS",
+    "DRAGONROACHES",
+    "MINDLESS MASSES",
+    "APPROPRIATORS"
 ];
-
-
-//DBS-2 Double Freedom
-//AR/GL-21 One-Two
-//AX/FLAM-75 Hot Dog
-//CQC-9 Defoliation Tool
-//M-1000 Maxigun
-
-//P-35 Re-Educator
-//R-72 Censor
-//AR-59 Suppressor
-//TM-1 Lure Mine
-//B/MD C4 Pack
-
-//LAS-13 Trident
-//CQC-20 Breaching Hammer
-//EAT-411 Leveller
-//GL-28 Belf-fed Grenade Launcher
-//G/SH-39 Shield
-
-//TD-220 Bastion
 
 
 export const missionNames = [
@@ -288,6 +284,7 @@ export const missionNames = [
         "COMMANDO: EXTRACT INTEL",
         "COMMANDO: SECURE BLACK BOX",
         "CONFISCATE ASSETS",
+        "DESTROY EXOSPIRE"
     ],
     [
         "ERADICATE TERMINID SWARM",
