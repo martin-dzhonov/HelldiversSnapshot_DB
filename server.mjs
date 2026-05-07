@@ -212,7 +212,7 @@ app.get('/generate', async (req, res) => {
 
     await GameModel.insertMany(mongoData, { ordered: false });
 
-    res.send({ games })
+    res.send({ matchesRaw })
 })
 
 const getLoadoutResults = async matchesRaw => {
@@ -541,13 +541,30 @@ app.get('/seed', async (req, res) => {
     res.send("Data copied successfully.");
 });
 
+let isBackingUp = false;
+
 app.get('/backup', async (req, res) => {
-    await GameModelBackup.collection.drop().catch(() => {});
-    const data = await GameModel.find().lean();
-    const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
-    await GameModelBackup.insertMany(newData);
-    res.send("Data copied successfully.");
+    if (isBackingUp) {
+        return res.status(429).send('Backup already in progress');
+    }
+
+    isBackingUp = true;
+
+    try {
+        await GameModelBackup.collection.drop().catch(() => {});
+        const data = await GameModel.find().lean();
+        const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
+        await GameModelBackup.insertMany(newData);
+        res.send("Data copied successfully.");
+
+    } catch (e) {
+        res.status(500).send("Backup failed");
+    } finally {
+        isBackingUp = false;
+    }
 });
+
+
 
 app.get('/backup_1', async ( req, res) => {
     await GameModelBackup_1.deleteMany({});

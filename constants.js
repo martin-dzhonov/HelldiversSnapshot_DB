@@ -231,7 +231,7 @@ export const armorNames = [
 ];
 
 export const subfactionNames = [
-    "THE JET BRIGADE",
+    "JET BRIGADE FACTORIES",
     "THE INCENERATION CORPS",
     "CYBORGS",
     "HEAVY ARMOR SURGE",
@@ -284,7 +284,11 @@ export const missionNames = [
         "COMMANDO: EXTRACT INTEL",
         "COMMANDO: SECURE BLACK BOX",
         "CONFISCATE ASSETS",
-        "DESTROY EXOSPIRE"
+        "DESTROY EXOSPIRE",
+        "SABOTAGE ORGO-PLASMA SYNTHESIS",
+        "ANNEX UNTAPPED MINERAL SITES",
+        "SEIZE INDUSTRIAL COMPLEX",
+        "RAPID AQUISITION"
     ],
     [
         "ERADICATE TERMINID SWARM",
