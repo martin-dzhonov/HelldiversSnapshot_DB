@@ -79,7 +79,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/getAssets', async (req, res) => {
-    const filePath = 'Screenshots/ulatest/Screenshot (126).png';
+    const filePath = 'Screenshots/ulatest/Screenshot (2077168).png';
     processMultipleCrops(filePath)
         .then(results => {
             results.forEach((result, index) => {
@@ -89,6 +89,56 @@ app.get('/getAssets', async (req, res) => {
         .catch(console.error);
     res.send("Success");
 })
+
+async function moveFilesFromResillo() {
+    const dir_resillo = `D:/Resillo`;
+    const dir_backup = `Screenshots/backups`;
+
+    const date = new Date();
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yy = String(date.getFullYear()).slice(-2);
+    const dateFolder = `${dir_backup}/${dd}-${mm}-${yy}`;
+
+    await fsPromises.mkdir(dateFolder, { recursive: true });
+    await fsPromises.mkdir(dir_latest, { recursive: true });
+
+    const files = (await fsPromises.readdir(dir_resillo))
+        .filter(f => f !== '.sync');
+
+    if (!files.length) {
+        console.log('No files to move from Resillo');
+        return 0;
+    }
+
+    await Promise.all(files.map(async (file) => {
+        const src = `${dir_resillo}/${file}`;
+        const backup = `${dateFolder}/${file}`;
+        const dest = `${dir_latest}/${file}`;
+
+        await fsPromises.copyFile(src, backup);
+        await fsPromises.copyFile(src, dest);
+        await fsPromises.unlink(src);
+    }));
+
+    console.log(`Moved ${files.length} files from Resillo`);
+    return files.length;
+}
+
+app.get('/run', async (req, res) => {
+    try {
+        const movedCount = await moveFilesFromResillo();
+
+        if (!movedCount) {
+            return res.send({ message: 'No files to process' });
+        }
+
+        res.send({ message: 'Pipeline completed successfully', filesProcessed: movedCount });
+    } catch (err) {
+        console.error('Pipeline failed:', err);
+        res.status(500).send({ error: err.message });
+    }
+});
 
 app.get('/generate2', async (req, res) => {
     const now = () => process.hrtime.bigint()
@@ -214,7 +264,10 @@ app.get('/generate', async (req, res) => {
 
     res.send({ matchesRaw })
 })
-
+//2077504
+//2077336
+//2077168
+//2077070
 const getLoadoutResults = async matchesRaw => {
     return Promise.all(
         matchesRaw.map(async item => {
