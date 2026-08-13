@@ -139,22 +139,9 @@ export const primariesNames = {
     "LAS-13": "trident",
     "SG-97": "sweeper",
     "SMG/FLAM-34": "stoker",
-    "SMG-203": "gallant"
+    "SMG-203": "gallant",
+    "R/40-K": "hot_shot"
 };
-
-
-//OXYGENATOR
-
-//MGX-42 Bullet Storm
-//EXO-51 Lumberer Exosuit
-//EXO-55 Breakthrough Exosuit
-
-
-//SMG-203 Gallant
-//P-33 Missile Pistol
-
-
-
 
 export const secondariesNames = {
     "P-2": "peacemaker",
@@ -180,7 +167,8 @@ export const secondariesNames = {
     "P-35": "re_educator",
     "CQC-72": "entrenchment_tool",
     "P-69": "veto",
-    "P-33": "missile_pistol"
+    "P-33": "missile_pistol",
+    "P/40-K": "bolt_pistol"
 }
 
 export const throwablesNames = {
@@ -204,6 +192,7 @@ export const throwablesNames = {
     "G-89": "grenade_smokescreen",
     "G/SH-39": "grenade_shield",
     "G-48": "giga_grenade",
+    "G/40-K": "melta_mine"
 }
 
 export const armorNames = [
@@ -234,7 +223,8 @@ export const armorNames = [
     'Concussive Padding, Grenadier',
     'Concussive Padding, Hazmat',
     'Concussive Padding, Reinforced',
-    "Oxygenator"
+    "Oxygenator",
+    "True Grit"
 ];
 
 export const subfactionNames = [
@@ -249,7 +239,8 @@ export const subfactionNames = [
     "HIVE LORDS",
     "DRAGONROACHES",
     "MINDLESS MASSES",
-    "APPROPRIATORS"
+    "APPROPRIATORS",
+    "VOTE SNATCHERS"
 ];
 
 

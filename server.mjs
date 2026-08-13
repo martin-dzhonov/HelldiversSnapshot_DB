@@ -14,7 +14,7 @@ const CPU_COUNT = os.cpus().length
 const app = express();
 const port = 3001;
 
-import { GameModel, GameModelBackup, GameModelBackup_1 } from './mongo.js';
+import { GameModel, GameModelBackup, GameModelBackup_1, GameModelBackup1, GameModelBackup2, GameModelBackup3, GameModelBackupTemp } from './mongo.js';
 import {
     dir_latest,
     briefingAreas,
@@ -62,6 +62,8 @@ import { initTesseractWorkers, terminateTesseractWorkers, tesseractRecognize } f
 
 import { start } from 'repl';
 
+const backupSlots = [GameModelBackup1, GameModelBackup2, GameModelBackup3];
+
 app.use(function (req, res, next) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
@@ -79,7 +81,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/getAssets', async (req, res) => {
-    const filePath = 'Screenshots/ulatest/Screenshot (2077168).png';
+    const filePath = 'Screenshots/ulatest/Screenshot (457112).png';
     processMultipleCrops(filePath)
         .then(results => {
             results.forEach((result, index) => {
@@ -90,28 +92,107 @@ app.get('/getAssets', async (req, res) => {
     res.send("Success");
 })
 
-async function moveFilesFromResillo() {
-    const dir_resillo = `D:/Resillo`;
-    const dir_backup = `Screenshots/backups`;
-
+async function getDateFolder(baseDir) {
     const date = new Date();
     const dd = String(date.getDate()).padStart(2, '0');
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const yy = String(date.getFullYear()).slice(-2);
-    const dateFolder = `${dir_backup}/${dd}-${mm}-${yy}`;
+    const base = `${dd}-${mm}-${yy}`;
+
+    let folder = `${baseDir}/${base}`;
+    let counter = 2;
+
+    while (true) {
+        try {
+            await fsPromises.access(folder);
+            folder = `${baseDir}/${base}-${counter}`;
+            counter++;
+        } catch {
+            await fsPromises.mkdir(folder, { recursive: true });
+            return folder;
+        }
+    }
+}
+
+
+app.get('/check', async (req, res) => {
+    const files = await fsPromises.readdir(dir_latest);
+    const results = await Promise.all(files.map(async (file) => {
+        const stat = await fsPromises.stat(`${dir_latest}/${file}`);
+        return { file, size: stat.size };
+    }));
+    res.send(results);
+});
+
+
+
+app.get('/rollback/:slot', async (req, res) => {
+    const slot = parseInt(req.params.slot);
+    if (slot < 1 || slot > 3) return res.status(400).send({ error: 'Slot must be 1, 2, or 3' });
+
+    res.send({ message: `Rollback to slot ${slot} started` });
+
+    try {
+        const backupModel = backupSlots[slot - 1];
+        const data = await backupModel.find().lean();
+        if (!data.length) {
+            console.error(`No data in backup slot ${slot}`);
+            return;
+        }
+
+        const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
+        await GameModel.collection.drop().catch(() => {});
+        await GameModel.insertMany(newData, { ordered: false });
+
+        console.log(`Rollback to slot ${slot} complete: ${data.length} records restored`);
+    } catch (e) {
+        console.error('Rollback failed:', e);
+    } finally {
+        console.log(`Rollback finished`);
+    }
+});
+
+async function runBackup() {
+    await backupSlots[2].collection.drop().catch(() => {});
+    await backupSlots[1].collection.rename('matches_backups_3', { dropTarget: true }).catch(() => {});
+    await backupSlots[0].collection.rename('matches_backups_2', { dropTarget: true }).catch(() => {});
+
+    const data = await GameModel.find().lean();
+    const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
+
+    await GameModelBackupTemp.collection.drop().catch(() => {});
+    await GameModelBackupTemp.insertMany(newData, { ordered: false });
+    await GameModelBackupTemp.collection.rename('matches_backups_1', { dropTarget: true });
+
+    console.log(`Backup complete: ${data.length} records`);
+    return data.length;
+}
+
+async function moveAndBackup() {
+    const dir_resillo = `D:/SYNC_DUMP/Screenshots`;
+    const dateFolder = await getDateFolder(`Screenshots/backups`);
 
     await fsPromises.mkdir(dateFolder, { recursive: true });
     await fsPromises.mkdir(dir_latest, { recursive: true });
 
-    const files = (await fsPromises.readdir(dir_resillo))
+    const allFiles = (await fsPromises.readdir(dir_resillo))
         .filter(f => f !== '.sync');
 
-    if (!files.length) {
-        console.log('No files to move from Resillo');
+    const pngFiles = allFiles.filter(f => f.endsWith('.png'));
+    const junkFiles = allFiles.filter(f => !f.endsWith('.png'));
+
+    await Promise.all(junkFiles.map(f =>
+        fsPromises.unlink(`${dir_resillo}/${f}`).catch(err => {
+            if (err.code !== 'EPERM') throw err;
+        })
+    ));
+
+    if (!pngFiles.length) {
+        console.log('No files to move');
         return 0;
     }
 
-    await Promise.all(files.map(async (file) => {
+    await Promise.all(pngFiles.map(async (file) => {
         const src = `${dir_resillo}/${file}`;
         const backup = `${dateFolder}/${file}`;
         const dest = `${dir_latest}/${file}`;
@@ -121,91 +202,201 @@ async function moveFilesFromResillo() {
         await fsPromises.unlink(src);
     }));
 
-    console.log(`Moved ${files.length} files from Resillo`);
-    return files.length;
+    console.log(`Moved ${pngFiles.length} files from SYNC`);
+    return pngFiles.length;
 }
 
-app.get('/run', async (req, res) => {
-    try {
-        const movedCount = await moveFilesFromResillo();
 
-        if (!movedCount) {
-            return res.send({ message: 'No files to process' });
+async function runFilter() {
+    console.time('Filter Execution Time');
+
+    const files = (await getFilesNumeric(dir_latest))
+        .filter(f => f.endsWith('.png'));
+
+    const validFiles = new Set();
+    const history = [];
+
+    for (const file of files) {
+
+        const imageSharp = await getImageData(file);
+
+        const lPixel = getPixelAt(585, 225, imageSharp.buffer);
+        const bPixel = getPixelAt(80, 96, imageSharp.buffer);
+
+        const isLoadoutFile = isLoadout(lPixel);
+        const isBriefingFile = isBriefing(bPixel);
+
+        history.push({
+            file,
+            isLoadout: isLoadoutFile,
+            isBriefing: isBriefingFile
+        });
+
+        if (history.length < 14) continue;
+
+        const current = history[history.length - 1];
+
+        const isValidBriefing =
+            current.isLoadout === false &&
+            current.isBriefing === true;
+
+        if (!isValidBriefing) continue;
+
+        const previous13 = history.slice(history.length - 14, history.length - 1);
+
+        const allLoadouts =
+            previous13.length === 13 &&
+            previous13.every(f =>
+                f.isLoadout === true &&
+                f.isBriefing === true
+            );
+
+        if (allLoadouts) {
+            validFiles.add(current.file);
+            previous13.forEach(f => validFiles.add(f.file));
         }
-
-        res.send({ message: 'Pipeline completed successfully', filesProcessed: movedCount });
-    } catch (err) {
-        console.error('Pipeline failed:', err);
-        res.status(500).send({ error: err.message });
     }
-});
 
-app.get('/generate2', async (req, res) => {
-    const now = () => process.hrtime.bigint()
-    const seconds = (start) => ((Number(now() - start) / 1e9).toFixed(1))
+    const invalidFiles = files
+        .filter(file => !validFiles.has(file))
+        .map(file => `${dir_latest}/${file}`);
 
-    const totalStart = now()
+    if (invalidFiles.length) {
+        await deleteFilesBulk(invalidFiles);
+    }
 
-    const files = await getFilesNumeric(dir_latest)
-    const groupSize = 14
+    console.timeEnd('Filter Execution Time');
+
+    return validFiles.size;
+}
+
+async function waitForDeletions(interval = 200, timeout = 25000) {
+    const start = Date.now();
+    let prevCount = -1;
+
+    while (Date.now() - start < timeout) {
+        const files = await fsPromises.readdir(dir_latest);
+        if (files.length === prevCount) return files.length;
+        prevCount = files.length;
+        await new Promise(r => setTimeout(r, interval));
+    }
+    throw new Error('Timed out waiting for deletions to settle');
+}
+
+
+async function runGenerate() {
+    const now = () => process.hrtime.bigint();
+    const seconds = (start) => ((Number(now() - start) / 1e9).toFixed(1));
+    const totalStart = now();
+
+    const files = await getFilesNumeric(dir_latest);
+    const groupSize = 14;
 
     const getGroupedFiles = index =>
         files
             .filter((_, i) => i % groupSize === index)
-            .map(item => `${dir_latest}/${item}`)
+            .map(item => `${dir_latest}/${item}`);
 
-    const parallelStart = now()
-
-    const [briefingResult] = await Promise.all([
+    const [strategemResult, weaponsResult, briefingResult] = await Promise.all([
+        getStrategemData(getGroupedFiles(0)),
+        getWeaponsData(getGroupedFiles(1)),
         getBriefingData(getGroupedFiles(groupSize - 1))
-    ])
+    ]);
 
-    console.log('Parallel data fetch s:', seconds(parallelStart))
+    const matchesRaw = mergeDataResults(strategemResult, weaponsResult, briefingResult);
+    const loadoutResult = await getLoadoutResults(matchesRaw);
 
-    const totalSeconds = parseFloat(seconds(totalStart))
-    const gamesCount = files.length / groupSize
-    const avgPer = (totalSeconds / gamesCount).toFixed(1)
+    matchesRaw.forEach((match, i) => { Object.assign(match, loadoutResult[i]); });
 
-    console.log('Total execution s:', totalSeconds)
-    console.log('Games:', gamesCount)
-    console.log('Avg per game:', avgPer)
+    const playerGames = parsePlayerData(matchesRaw);
+    const games = await normalizeIds(playerGames);
 
-    res.send({ briefingResult })
-})
+    const totalSeconds = parseFloat(seconds(totalStart));
+    const gamesCount = files.length / groupSize;
+    const avgPer = (totalSeconds / gamesCount).toFixed(1);
 
-async function getBriefingData(files) {
-    const limit = pLimit(CPU_COUNT);
+    console.log('Total execution s:', totalSeconds);
+    console.log('Games:', gamesCount);
+    console.log('Avg per game:', avgPer);
 
-    return await Promise.all(
-        files.map(file => limit(() => processBriefing(file)))
+    const uniqueFactions = [...new Set(games.map(m => m.faction))];
+    const factionFolders = {};
+    await Promise.all(
+        uniqueFactions.map(async (faction) => {
+            factionFolders[faction] = await getDateFolder(`Screenshots/${faction}/latest`);
+        })
     );
+
+    const renamePromises = [];
+    games.forEach((match) => {
+        const destDir = factionFolders[match.faction];
+        match.fileNames.forEach((fileName, index) => {
+            const src = `Screenshots/ulatest/${fileName}`;
+            const dest = `${destDir}/${getFileFromId(match.id + index)}`;
+            renamePromises.push(fsPromises.rename(src, dest));
+        });
+    });
+    await Promise.all(renamePromises);
+
+    const mongoData = games.map(({ fileNames, ...trimmed }) => trimmed);
+    await GameModel.insertMany(mongoData, { ordered: false });
+
+    return { length: games.length, data: playerGames, factionFolders };
 }
 
-// async function processBriefing(file) {
-//     const buffer = await fsPromises.readFile(file);
-//     const image = sharp(buffer);
+async function runUpload(factionFolders) {
+    const stitchingPromises = [];
 
-//     const newAreas = [{ left: 123, top: 5, width: 410, height: 45 }];
+    for (const [faction, dir] of Object.entries(factionFolders)) {
+        const files = await fsPromises.readdir(dir);
 
-//     const ocr = await Promise.all(
-//         newAreas.map(async ({ left, top, width, height }) => {
-//             const bufferCrop = await image.clone()
-//             .extract({ left, top, width, height })
-//             .resize({ width: width * 2 })
-//             .grayscale()
-//             .threshold(150)
-//             .toBuffer();
+        for (let i = 0; i < files.length; i += 14) {
+            if (!files[i + 13]) continue;
 
-//             return tesseractRecognize(bufferCrop);
-//         })
-//     );
+            const img1 = `${dir}/${files[i]}`;
+            const img2 = `${dir}/${files[i + 1]}`;
+            const img3 = `${dir}/${files[i + 13]}`;
 
-//     const [planetData] = ocr;
+            stitchingPromises.push(
+                stitchAndUpload(img1, img2, img3, files[i])
+            );
+        }
+    }
 
-//     return {
-//         planet: planetData,
-//     };
-// }
+    await Promise.all(stitchingPromises);
+}
+
+app.get('/run', async (req, res) => {
+    res.send({ message: 'Pipeline started' });
+
+    try {
+        await runBackup();
+
+        const movedCount = await moveAndBackup();
+
+        if (!movedCount) return;
+
+        const matches = await runFilter();
+        await waitForDeletions();
+
+        const games = await runGenerate();
+        await runUpload(games.factionFolders);
+
+    } catch (err) {
+        console.error('Pipeline failed:', err);
+    } finally {
+        console.error('Pipeline finished');
+    }
+});
+
+app.get('/stats', async (req, res) => {
+    const stats = await mongoose.connection.db.command({ collStats: 'matches' });
+    res.send({
+        count: stats.count,
+        sizeMB: (stats.size / 1024 / 1024).toFixed(2),
+        avgDocumentKB: (stats.avgObjSize / 1024).toFixed(2)
+    });
+});
 
 app.get('/generate', async (req, res) => {
     const now = () => process.hrtime.bigint()
@@ -231,7 +422,7 @@ app.get('/generate', async (req, res) => {
 
     console.log('Parallel data fetch s:', seconds(parallelStart))
 
-     const matchesRaw = mergeDataResults(strategemResult, weaponsResult, briefingResult)
+    const matchesRaw = mergeDataResults(strategemResult, weaponsResult, briefingResult)
     const loadoutResult = await getLoadoutResults(matchesRaw)
 
     matchesRaw.forEach((match, i) => { Object.assign(match, loadoutResult[i]) })
@@ -264,6 +455,9 @@ app.get('/generate', async (req, res) => {
 
     res.send({ matchesRaw })
 })
+//8002044
+
+
 //2077504
 //2077336
 //2077168
@@ -501,10 +695,10 @@ async function processBriefing(file) {
     const ocr = await Promise.all(
         newAreas.map(async ({ left, top, width, height }) => {
             const bufferCrop = await image.clone()
-            .extract({ left, top, width, height })
-            .resize({ width: width * 2 })
-            .grayscale()
-            .toBuffer();
+                .extract({ left, top, width, height })
+                .resize({ width: width * 2 })
+                .grayscale()
+                .toBuffer();
 
             //await fsPromises.writeFile(`assets_dump/${getScreenshotId(file)}.png`, bufferCrop);
 
@@ -558,7 +752,7 @@ async function processBriefing(file) {
         console.log(missionNameData.replace(/\n/g, ''));
         console.log(normalizeFromSet(missionNameData.replace(/\n/g, ''), missionNames.flat()));
     }
-   
+
     return {
         fileName: file,
         planet: planetName,
@@ -587,44 +781,27 @@ async function getFilesNumeric(dir) {
 }
 
 app.get('/seed', async (req, res) => {
-    await GameModel.collection.drop().catch(() => {});
+    res.send("Rollback started");
+    await GameModel.collection.drop().catch(() => { });
     const data = await GameModelBackup.find().lean();
     const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
     await GameModel.insertMany(newData);
-    res.send("Data copied successfully.");
+    console.log('Seed rollback finished')
 });
 
-let isBackingUp = false;
-
 app.get('/backup', async (req, res) => {
-    if (isBackingUp) {
-        return res.status(429).send('Backup already in progress');
-    }
-
-    isBackingUp = true;
+    res.send("Backup started");
 
     try {
-        await GameModelBackup.collection.drop().catch(() => {});
+        await GameModelBackup.collection.drop().catch(() => { });
         const data = await GameModel.find().lean();
         const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
         await GameModelBackup.insertMany(newData);
-        res.send("Data copied successfully.");
-
     } catch (e) {
         res.status(500).send("Backup failed");
     } finally {
-        isBackingUp = false;
+        console.log('Backup finished')
     }
-});
-
-
-
-app.get('/backup_1', async ( req, res) => {
-    await GameModelBackup_1.deleteMany({});
-    const data = await GameModel.find().lean();
-    const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
-    await GameModelBackup_1.insertMany(newData);
-    res.send("Data copied successfully.");
 });
 
 async function processMultipleCrops(filePath) {
@@ -673,7 +850,46 @@ app.get('/games/:faction/:id', (req, res) => {
             res.send(games);
         });
 });
+app.get('/replace-shield', async (req, res) => {
+    try {
+        const games = await GameModel.find({
+            "players.strategem": "backpack_shield_3"
+        });
 
+        let updated = 0;
+
+        for (const game of games) {
+            let changed = false;
+
+            for (const player of game.players) {
+                if (!player.strategem) continue;
+
+                const newStrategems = player.strategem.map(s =>
+                    s === "backpack_shield_3"
+                        ? "backpack_shield"
+                        : s
+                );
+
+                if (JSON.stringify(newStrategems) !== JSON.stringify(player.strategem)) {
+                    player.strategem = newStrategems;
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                game.markModified('players');
+                await game.save();
+                updated++;
+            }
+        }
+
+        res.send({ updated });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).send(err);
+    }
+});
 
 
 await initTesseractWorkers();
@@ -705,3 +921,70 @@ process.on('SIGINT', terminateTesseractWorkers);
 //         res.status(500).send(err);
 //     });
 // });
+
+// app.get('/generate2', async (req, res) => {
+//     const now = () => process.hrtime.bigint()
+//     const seconds = (start) => ((Number(now() - start) / 1e9).toFixed(1))
+
+//     const totalStart = now()
+
+//     const files = await getFilesNumeric(dir_latest)
+//     const groupSize = 14
+
+//     const getGroupedFiles = index =>
+//         files
+//             .filter((_, i) => i % groupSize === index)
+//             .map(item => `${dir_latest}/${item}`)
+
+//     const parallelStart = now()
+
+//     const [briefingResult] = await Promise.all([
+//         getBriefingData(getGroupedFiles(groupSize - 1))
+//     ])
+
+//     console.log('Parallel data fetch s:', seconds(parallelStart))
+
+//     const totalSeconds = parseFloat(seconds(totalStart))
+//     const gamesCount = files.length / groupSize
+//     const avgPer = (totalSeconds / gamesCount).toFixed(1)
+
+//     console.log('Total execution s:', totalSeconds)
+//     console.log('Games:', gamesCount)
+//     console.log('Avg per game:', avgPer)
+
+//     res.send({ briefingResult })
+// })
+
+async function getBriefingData(files) {
+    const limit = pLimit(CPU_COUNT);
+
+    return await Promise.all(
+        files.map(file => limit(() => processBriefing(file)))
+    );
+}
+
+// async function processBriefing(file) {
+//     const buffer = await fsPromises.readFile(file);
+//     const image = sharp(buffer);
+
+//     const newAreas = [{ left: 123, top: 5, width: 410, height: 45 }];
+
+//     const ocr = await Promise.all(
+//         newAreas.map(async ({ left, top, width, height }) => {
+//             const bufferCrop = await image.clone()
+//             .extract({ left, top, width, height })
+//             .resize({ width: width * 2 })
+//             .grayscale()
+//             .threshold(150)
+//             .toBuffer();
+
+//             return tesseractRecognize(bufferCrop);
+//         })
+//     );
+
+//     const [planetData] = ocr;
+
+//     return {
+//         planet: planetData,
+//     };
+// }

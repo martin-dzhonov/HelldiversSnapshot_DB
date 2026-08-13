@@ -7,6 +7,8 @@ const pixelmatch = require('pixelmatch').default;
 const fsPromises = require('fs').promises;
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 
+import { GameModel, GameModelBackup, GameModelBackup_1 } from './mongo.js';
+
 dotenv.config();
 const bucketName = process.env.BUCKET_NAME;
 const bucketRegion = process.env.BUCKET_REGION;
@@ -240,7 +242,7 @@ const validateWeapons = (weapons) => {
         if (item.diff > 600 || item.match === "empty.png") {
             return null;
         } else {
-            const formatted =  item.match.replace(/_new/g, '').replace(/_2/g, '').replace(/.png/g, '');
+            const formatted =  item.match.replace(/_new1/g, '').replace(/_new2/g, '').replace(/.png/g, '');
             return formatted;
         }
     })
@@ -252,7 +254,7 @@ const validateDiffs = (playerGroups) => {
     const result = playerGroups
         .filter(group => !group.some(({ match, diff }) => diff > 600))
         .filter(group => !group.every(({ match, diff }) => match === "empty.png"))
-        .map(group => group.map(({ match }) => match.replace(/_new/g, '').replace(/_2/g, '').replace(/.png/g, '')).filter((match) => match !== "empty"))
+        .map(group => group.map(({ match }) => match.replace(/_new1/g, '').replace(/_new2/g, '').replace(/.png/g, '')).filter((match) => match !== "empty"))
         .filter(group => group.length > 2)
     return playerGroups;
 };
@@ -266,7 +268,7 @@ const validateDiffs2 = (playerGroups) => {
                 if (match === "empty.png" || diff > 600) {
                     return null;
                 } else {
-                    return match.replace(/_2/g, '').replace(/_new/g, '').replace(/.png/g, '')
+                    return match.replace(/_new1/g, '').replace(/_new2/g, '').replace(/.png/g, '')
                 }
             });
         }
@@ -372,20 +374,40 @@ const getMissionModifiers = (text) => {
     return result;
 }
 
+// async function getFactionIndices() {
+//     const indices = {};
+//     for (const faction of factionNames) {
+//         const files = await fsPromises.readdir(`Screenshots/${faction}/all/new`);
+//         //const files = await fsPromises.readdir(`Screenshots/${faction}/latest`);
+//         indices[`${faction}`] = getScreenshotId(files[files.length - 1]) + 1;
+//     }
+//     return {
+//         automatonIndex: indices.automaton,
+//         terminidIndex: indices.terminid,
+//         illuminateIndex: indices.illuminate
+//     };
+// }
+
 async function getFactionIndices() {
-    const indices = {};
-    for (const faction of factionNames) {
-        const files = await fsPromises.readdir(`Screenshots/${faction}/all/new`);
-        //const files = await fsPromises.readdir(`Screenshots/${faction}/latest`);
-        indices[`${faction}`] = getScreenshotId(files[files.length - 1]) + 1;
-    }
+    const factions = ['automaton', 'terminid', 'illuminate'];
+    
+    const results = await Promise.all(
+        factions.map(faction =>
+            GameModel.findOne({ faction })
+                .sort({ id: -1 })
+                .select('id')
+                .lean()
+        )
+    );
+
+    const [automaton, terminid, illuminate] = results;
+
     return {
-        automatonIndex: indices.automaton,
-        terminidIndex: indices.terminid,
-        illuminateIndex: indices.illuminate
+        automatonIndex: automaton ? automaton.id + 14 : 0,
+        terminidIndex: terminid ? terminid.id + 14 : 0,
+        illuminateIndex: illuminate ? illuminate.id + 14 : 0,
     };
 }
-
 async function normalizeIds(matches) {
     let { terminidIndex, automatonIndex, illuminateIndex } = await getFactionIndices();
 
