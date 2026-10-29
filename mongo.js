@@ -27,8 +27,6 @@ const gameSchema = new mongoose.Schema({
 })
 
 const GameModel = mongoose.model("matches", gameSchema);
-const GameModelBackup = mongoose.model("matches_backup", gameSchema);
-const GameModelBackup_1 = mongoose.model("matches_backup_2", gameSchema);
 
 const GameModelBackup1 = mongoose.model("matches_backups_1", gameSchema);
 const GameModelBackup2 = mongoose.model("matches_backups_2", gameSchema);
@@ -37,9 +35,6 @@ const GameModelBackupTemp = mongoose.model("matches_backups_temp", gameSchema);
 
 export {
     GameModel,
-    GameModelBackup,
-    GameModelBackup_1,
-    
     GameModelBackup1,
     GameModelBackup2,
     GameModelBackup3,

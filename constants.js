@@ -89,6 +89,20 @@ export const playerColors = [
     { r: 129, g: 172, b: 255 },//blue
 ]
 
+//gas eagle
+
+//maelstorm
+
+//R-4 Hyena
+//AR-11 Arbitrator
+//LAS-12 Sai
+//GL-15 Evictor
+
+//P-34 Breacher
+
+//G-60 Anti-Tank Seeker
+//G-8 Immolation
+
 export const primariesNames = {
     "AR-23": "liberator",
     "AR-23P": "liberator_pen",
@@ -140,7 +154,12 @@ export const primariesNames = {
     "SG-97": "sweeper",
     "SMG/FLAM-34": "stoker",
     "SMG-203": "gallant",
-    "R/40-K": "hot_shot"
+    "R/40-K": "hot_shot",
+
+    "R-4": "hyena",
+    "AR-11": "arbitrator",
+    "GL-15": "evictor",
+    "LAS-12": "sai"
 };
 
 export const secondariesNames = {
@@ -168,7 +187,9 @@ export const secondariesNames = {
     "CQC-72": "entrenchment_tool",
     "P-69": "veto",
     "P-33": "missile_pistol",
-    "P/40-K": "bolt_pistol"
+    "P/40-K": "bolt_pistol",
+
+    "P-34": "breacher"
 }
 
 export const throwablesNames = {
@@ -192,7 +213,10 @@ export const throwablesNames = {
     "G-89": "grenade_smokescreen",
     "G/SH-39": "grenade_shield",
     "G-48": "giga_grenade",
-    "G/40-K": "melta_mine"
+    "G/40-K": "melta_mine",
+
+    "G-8": "grenade_immolation",
+    "G-60": "grenade_at_seeker"
 }
 
 export const armorNames = [
@@ -224,7 +248,8 @@ export const armorNames = [
     'Concussive Padding, Hazmat',
     'Concussive Padding, Reinforced',
     "Oxygenator",
-    "True Grit"
+    "True Grit",
+    "Blunt-Force Mitigation"
 ];
 
 export const subfactionNames = [
@@ -240,7 +265,8 @@ export const subfactionNames = [
     "DRAGONROACHES",
     "MINDLESS MASSES",
     "APPROPRIATORS",
-    "VOTE SNATCHERS"
+    "VOTE SNATCHERS",
+    "INVASION FLEET"
 ];
 
 
@@ -287,7 +313,11 @@ export const missionNames = [
         "SABOTAGE ORGO-PLASMA SYNTHESIS",
         "ANNEX UNTAPPED MINERAL SITES",
         "SEIZE INDUSTRIAL COMPLEX",
-        "RAPID AQUISITION"
+        "RAPID AQUISITION",
+        "DESTROY GAZER SPIRE",
+        "DEMOCRATIZE THE VOID",
+        "EXTRACT ANOMALOUS MATERIAL",
+        "INFILTRATE ILLUMINATE LAIR",
     ],
     [
         "ERADICATE TERMINID SWARM",
@@ -299,7 +329,8 @@ export const missionNames = [
         "RETRIEVE ESSENTIAL PERSONNEL",
         "BLITZ: SECURE RESEARCH SITE",
         "BLITZ: DESTROY BIO-PROCESSORS",
-        "REPEL INVASION FLEET"
+        "REPEL INVASION FLEET",
+        "BLITZ: DESTROY WARP GATEWAY"
     ],
 ];
 
@@ -533,6 +564,10 @@ export const factionPlanets = {
       "PILEN V",
       "NEW HAVEN",
       "WIDOW'S HARBOR",
-      "KLEN DAHTH II"
+      "KLEN DAHTH II",
+      "UVP ALPHA",
+      "UVP BETA",
+      "UVP GAMMA",
+      "VOID SOURCE PLANET"
     ]
   }

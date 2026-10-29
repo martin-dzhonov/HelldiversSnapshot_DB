@@ -14,7 +14,7 @@ const CPU_COUNT = os.cpus().length
 const app = express();
 const port = 3001;
 
-import { GameModel, GameModelBackup, GameModelBackup_1, GameModelBackup1, GameModelBackup2, GameModelBackup3, GameModelBackupTemp } from './mongo.js';
+import { GameModel, GameModelBackup1, GameModelBackup2, GameModelBackup3, GameModelBackupTemp } from './mongo.js';
 import {
     dir_latest,
     briefingAreas,
@@ -81,7 +81,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/getAssets', async (req, res) => {
-    const filePath = 'Screenshots/ulatest/Screenshot (457112).png';
+    const filePath = 'Screenshots/ulatest/Screenshot (696432).png';
     processMultipleCrops(filePath)
         .then(results => {
             results.forEach((result, index) => {
@@ -370,6 +370,8 @@ app.get('/run', async (req, res) => {
     res.send({ message: 'Pipeline started' });
 
     try {
+        console.log('Pipeline started');
+        
         await runBackup();
 
         const movedCount = await moveAndBackup();
@@ -455,13 +457,7 @@ app.get('/generate', async (req, res) => {
 
     res.send({ matchesRaw })
 })
-//8002044
 
-
-//2077504
-//2077336
-//2077168
-//2077070
 const getLoadoutResults = async matchesRaw => {
     return Promise.all(
         matchesRaw.map(async item => {
@@ -580,7 +576,7 @@ async function getEquiptmentData(files, isArmors, set) {
 }
 async function processEquipment(file, isArmors, set) {
     const coords = isArmors ?
-        { left: 1090, top: 551, width: 370, height: 30 } :
+        { left: 1090, top: 590, width: 400, height: 30 } :
         { left: 550, top: 415, width: 250, height: 25 }
 
     const buffer = await fsPromises.readFile(file);
@@ -780,29 +776,29 @@ async function getFilesNumeric(dir) {
     });
 }
 
-app.get('/seed', async (req, res) => {
-    res.send("Rollback started");
-    await GameModel.collection.drop().catch(() => { });
-    const data = await GameModelBackup.find().lean();
-    const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
-    await GameModel.insertMany(newData);
-    console.log('Seed rollback finished')
-});
+// app.get('/seed', async (req, res) => {
+//     res.send("Rollback started");
+//     await GameModel.collection.drop().catch(() => { });
+//     const data = await GameModelBackup.find().lean();
+//     const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
+//     await GameModel.insertMany(newData);
+//     console.log('Seed rollback finished')
+// });
 
-app.get('/backup', async (req, res) => {
-    res.send("Backup started");
+// app.get('/backup', async (req, res) => {
+//     res.send("Backup started");
 
-    try {
-        await GameModelBackup.collection.drop().catch(() => { });
-        const data = await GameModel.find().lean();
-        const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
-        await GameModelBackup.insertMany(newData);
-    } catch (e) {
-        res.status(500).send("Backup failed");
-    } finally {
-        console.log('Backup finished')
-    }
-});
+//     try {
+//         await GameModelBackup.collection.drop().catch(() => { });
+//         const data = await GameModel.find().lean();
+//         const newData = data.map(doc => ({ ...doc, _id: new mongoose.Types.ObjectId() }));
+//         await GameModelBackup.insertMany(newData);
+//     } catch (e) {
+//         res.status(500).send("Backup failed");
+//     } finally {
+//         console.log('Backup finished')
+//     }
+// });
 
 async function processMultipleCrops(filePath) {
     const buffer = await fsPromises.readFile(filePath);
@@ -891,6 +887,14 @@ app.get('/replace-shield', async (req, res) => {
     }
 });
 
+async function getBriefingData(files) {
+    const limit = pLimit(CPU_COUNT);
+
+    return await Promise.all(
+        files.map(file => limit(() => processBriefing(file)))
+    );
+}
+
 
 await initTesseractWorkers();
 process.on('exit', terminateTesseractWorkers);
@@ -955,13 +959,7 @@ process.on('SIGINT', terminateTesseractWorkers);
 //     res.send({ briefingResult })
 // })
 
-async function getBriefingData(files) {
-    const limit = pLimit(CPU_COUNT);
 
-    return await Promise.all(
-        files.map(file => limit(() => processBriefing(file)))
-    );
-}
 
 // async function processBriefing(file) {
 //     const buffer = await fsPromises.readFile(file);

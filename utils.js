@@ -7,7 +7,7 @@ const pixelmatch = require('pixelmatch').default;
 const fsPromises = require('fs').promises;
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 
-import { GameModel, GameModelBackup, GameModelBackup_1 } from './mongo.js';
+import { GameModel } from './mongo.js';
 
 dotenv.config();
 const bucketName = process.env.BUCKET_NAME;
@@ -596,7 +596,7 @@ function normalizeLvl(data) {
     return data.map(item => {
         const match = item.match(/\d+/g);
         let value = match ? Number(match.join("")) : null;
-        while (value > 150) {
+        while (value > 300) {
             value = Math.round(value / 10);
         }
         return value;
